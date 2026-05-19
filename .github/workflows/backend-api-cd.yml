@@ -1,0 +1,103 @@
+name: Backend API CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend-api/**'
+      - '.github/workflows/backend-api-cd.yml'
+
+env:
+  AWS_REGION: ap-northeast-2
+  SERVICE_NAME: backend-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get AWS Account ID
+        id: aws-account
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+          echo "AWS Account: ${ACCOUNT_ID}"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get Version
+        id: version
+        run: |
+          # README.md에서 버전 추출
+          VERSION=$(grep "Current Version" README.md | grep -oP '\d+\.\d+\.\d+')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Build and Push Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend-api
+
+          # Build
+          docker build -t ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${VERSION} .
+          docker tag ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${VERSION} \
+            ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${IMAGE_TAG}
+          docker tag ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${VERSION} \
+            ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:latest
+
+          # Push
+          docker push ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${VERSION}
+          docker push ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${IMAGE_TAG}
+          docker push ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:latest
+
+          echo "Pushed images:"
+          echo "  - ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${VERSION}"
+          echo "  - ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:${IMAGE_TAG}"
+          echo "  - ${ECR_REGISTRY}/gympt-${SERVICE_NAME}:latest"
+
+      - name: Update GitOps Repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Clone GitOps repo
+          git clone https://${GITHUB_TOKEN}@github.com/YOUR_ORG/gympt-gitops.git
+          cd gympt-gitops
+
+          # Update image tag
+          sed -i "s|tag: .*|tag: ${IMAGE_TAG}|" charts/${SERVICE_NAME}/values-prod.yaml
+
+          # Commit and push
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add charts/${SERVICE_NAME}/values-prod.yaml
+          git commit -m "ci: Update ${SERVICE_NAME} to ${IMAGE_TAG}"
+          git push
+
+      - name: Deployment Summary
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "## Backend API Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${SERVICE_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECR**: ${ECR_REGISTRY}/gympt-${SERVICE_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "GitOps repository updated. ArgoCD will sync automatically." >> $GITHUB_STEP_SUMMARY
