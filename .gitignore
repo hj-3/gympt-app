@@ -11,6 +11,7 @@ archive/
 .env.*.local
 *.env
 !.env.example
+.env*
 
 # OS
 .DS_Store
@@ -106,6 +107,12 @@ serviceAccountKey.json
 *.pfx
 .aws/
 .kube/config
+
+# AWS Credentials (NEVER COMMIT)
+**/aws_access_key_id*
+**/aws_secret_access_key*
+**/*credentials*
+!**/*.example
 
 # Kubernetes
 *.kubeconfig

@@ -325,4 +325,14 @@ Proprietary - All Rights Reserved
 
 ---
 
+---
+
+## 📦 버전
+
+**Current Version:** `0.1.0`
+
+**Changelog:** [CHANGELOG.md](../CHANGELOG.md)
+
+---
+
 **Last Updated:** 2026-05-19
