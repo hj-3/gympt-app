@@ -1,0 +1,4 @@
+#!/bin/sh
+# Placeholder for Gradle Wrapper
+# Run: gradle wrapper --gradle-version 8.7
+echo "Please run: gradle wrapper --gradle-version 8.7"

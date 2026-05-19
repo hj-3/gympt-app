@@ -1,0 +1,8 @@
+{
+  "Records": [
+    {
+      "messageId": "msg-12345",
+      "body": "{\"userId\": \"user-123\", \"deviceType\": \"apple_watch\", \"deviceId\": \"watch-001\", \"timestamp\": \"2024-05-18T14:30:00Z\", \"metrics\": {\"heartRate\": 75, \"steps\": 1000, \"calories\": 50, \"activeMinutes\": 10}}"
+    }
+  ]
+}

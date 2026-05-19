@@ -1,0 +1,283 @@
+version: '3.8'
+
+# ============================================
+# GYMPT Local Development Environment
+# ============================================
+# This docker-compose provides local alternatives to AWS services
+# For testing local profile before AWS deployment
+# ============================================
+
+services:
+  # ============================================
+  # Database - PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gympt-postgres
+    hostname: postgres
+    environment:
+      POSTGRES_DB: gympt
+      POSTGRES_USER: gympt_user
+      POSTGRES_PASSWORD: gympt_local_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gympt_user -d gympt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gympt-network
+
+  # ============================================
+  # Cache - Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: gympt-redis
+    hostname: redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gympt-network
+
+  # ============================================
+  # NoSQL - DynamoDB Local
+  # ============================================
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: gympt-dynamodb-local
+    hostname: dynamodb-local
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb_data:/data
+    networks:
+      - gympt-network
+
+  # DynamoDB Admin UI
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: gympt-dynamodb-admin
+    hostname: dynamodb-admin
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: ap-northeast-2
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+    ports:
+      - "8001:8001"
+    depends_on:
+      - dynamodb-local
+    networks:
+      - gympt-network
+
+  # ============================================
+  # AWS Services - LocalStack
+  # ============================================
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: gympt-localstack
+    hostname: localstack
+    environment:
+      SERVICES: s3,sqs,sns,events,dynamodb,secretsmanager,ssm
+      DEBUG: ${DEBUG:-0}
+      DATA_DIR: /var/lib/localstack
+      AWS_DEFAULT_REGION: ap-northeast-2
+      EDGE_PORT: 4566
+      HOSTNAME: localstack
+      HOSTNAME_EXTERNAL: localstack
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./init/localstack:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gympt-network
+
+  # ============================================
+  # Application Services
+  # ============================================
+
+  # Backend API (Spring Boot)
+  backend-api:
+    build:
+      context: ../backend-api
+      dockerfile: Dockerfile
+    image: gympt/backend-api:local
+    container_name: gympt-backend-api
+    hostname: backend-api
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      APP_ENV: local
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: gympt
+      DB_USERNAME: gympt_user
+      DB_PASSWORD: gympt_local_pass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      AWS_REGION: ap-northeast-2
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_ENDPOINT_URL: http://localstack:4566
+      SQS_ENDPOINT_URL: http://localstack:4566
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
+      EVENTBRIDGE_ENDPOINT_URL: http://localstack:4566
+      DYNAMODB_WORKOUT_SESSIONS_TABLE: gympt-workout-sessions-local
+      DYNAMODB_POSTURE_EVENTS_TABLE: gympt-posture-events-local
+      DYNAMODB_WEARABLE_EVENTS_TABLE: gympt-wearable-events-local
+      DYNAMODB_AGENT_INTERACTIONS_TABLE: gympt-agent-interactions-local
+      S3_MEDIA_BUCKET: gympt-media-local
+      S3_REPORT_BUCKET: gympt-reports-local
+      SQS_POSTURE_EVENT_QUEUE_URL: http://localstack:4566/000000000000/gympt-posture-events-local
+      SQS_REPORT_GENERATION_QUEUE_URL: http://localstack:4566/000000000000/gympt-report-generation-local
+      EVENTBRIDGE_BUS_NAME: gympt-events-local
+      AGENT_SERVICE_BASE_URL: http://agent-service:8001
+      POSTURE_ANALYSIS_SERVICE_BASE_URL: http://posture-analysis-service:8002
+      REPORT_SERVICE_BASE_URL: http://report-service:8003
+      NOTIFICATION_SERVICE_BASE_URL: http://notification-service:8004
+      JWT_SECRET: local_jwt_secret_for_development_only
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      LOG_LEVEL: DEBUG
+      ENABLE_API_DOCS: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      dynamodb-local:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - gympt-network
+
+  # Agent Service (FastAPI + Bedrock)
+  agent-service:
+    build:
+      context: ../agent-service
+      dockerfile: Dockerfile
+    image: gympt/agent-service:local
+    container_name: gympt-agent-service
+    hostname: agent-service
+    environment:
+      APP_ENV: local
+      SERVICE_NAME: agent-service
+      AWS_REGION: ap-northeast-2
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      BEDROCK_REGION: us-west-2
+      BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+      MOCK_BEDROCK: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
+      DYNAMODB_AGENT_INTERACTIONS_TABLE: gympt-agent-interactions-local
+      SQS_ENDPOINT_URL: http://localstack:4566
+      SQS_AGENT_TASK_QUEUE_URL: http://localstack:4566/000000000000/gympt-agent-tasks-local
+      BACKEND_API_BASE_URL: http://backend-api:8080
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      dynamodb-local:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gympt-network
+
+  # Posture Analysis Service (FastAPI + ML)
+  posture-analysis-service:
+    build:
+      context: ../posture-analysis-service
+      dockerfile: Dockerfile
+    image: gympt/posture-analysis-service:local
+    container_name: gympt-posture-analysis
+    hostname: posture-analysis-service
+    environment:
+      APP_ENV: local
+      SERVICE_NAME: posture-analysis-service
+      ENABLE_GPU: "false"
+      MODEL_TYPE: mediapipe
+      AWS_REGION: ap-northeast-2
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      S3_ENDPOINT_URL: http://localstack:4566
+      S3_MEDIA_BUCKET: gympt-media-local
+      SQS_ENDPOINT_URL: http://localstack:4566
+      SQS_POSTURE_EVENT_QUEUE_URL: http://localstack:4566/000000000000/gympt-posture-events-local
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
+      DYNAMODB_POSTURE_EVENTS_TABLE: gympt-posture-events-local
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8002:8002"
+    depends_on:
+      redis:
+        condition: service_healthy
+      dynamodb-local:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gympt-network
+
+volumes:
+  postgres_data:
+    name: gympt_postgres_data
+  redis_data:
+    name: gympt_redis_data
+  dynamodb_data:
+    name: gympt_dynamodb_data
+  localstack_data:
+    name: gympt_localstack_data
+
+networks:
+  gympt-network:
+    name: gympt-network
+    driver: bridge

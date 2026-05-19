@@ -1,0 +1,82 @@
+name: Posture Analysis Service CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths: ['posture-analysis-service/**', '.github/workflows/posture-analysis-service-ci.yml']
+
+env:
+  PYTHON_VERSION: '3.12'
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: gympt/posture-analysis-service
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        working-directory: posture-analysis-service
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov ruff
+      - name: Lint
+        working-directory: posture-analysis-service
+        run: ruff check app/
+      - name: Test
+        working-directory: posture-analysis-service
+        run: pytest tests/ -v --cov=app
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      short-sha: ${{ steps.vars.outputs.short-sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: vars
+        run: echo "short-sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+      - id: env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "role=${{ vars.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
+            echo "ecr=${{ vars.ECR_REGISTRY_PROD }}" >> $GITHUB_OUTPUT
+          else
+            echo "role=${{ vars.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
+            echo "ecr=${{ vars.ECR_REGISTRY_DEV }}" >> $GITHUB_OUTPUT
+          fi
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.env.outputs.role }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./posture-analysis-service
+          push: true
+          tags: ${{ steps.env.outputs.ecr }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.short-sha }}
+
+  update-gitops:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: gympt/gympt-gitops
+          token: ${{ secrets.GITOPS_PAT }}
+      - run: |
+          VALUES_FILE=$([ "${{ github.ref }}" == "refs/heads/main" ] && echo "values-prod.yaml" || echo "values-dev.yaml")
+          cd charts/posture-analysis-service
+          sed -i "s/tag: \".*\"/tag: \"${{ needs.build-and-push.outputs.short-sha }}\"/" $VALUES_FILE
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $VALUES_FILE
+          git commit -m "Update posture-analysis-service image to ${{ needs.build-and-push.outputs.short-sha }}"
+          git push

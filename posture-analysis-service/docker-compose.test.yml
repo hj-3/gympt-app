@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # Redis for caching and pub/sub
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # LocalStack for AWS services (DynamoDB, S3, SQS)
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,s3,sqs
+      - DEBUG=0
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./tmp/localstack:/tmp/localstack"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Posture Analysis Service (test mode)
+  posture-analysis-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      # App config
+      - APP_ENV=test
+      - LOG_LEVEL=DEBUG
+
+      # Model config (use mock for fast tests)
+      - MODEL_TYPE=mock
+      - ENABLE_GPU=false
+
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+      # AWS config
+      - AWS_REGION=ap-northeast-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
+      # DynamoDB
+      - DYNAMODB_ENDPOINT_URL=http://localstack:4566
+      - DYNAMODB_POSTURE_EVENTS_TABLE=gympt-posture-events-test
+
+      # S3
+      - S3_ENDPOINT_URL=http://localstack:4566
+      - S3_MEDIA_BUCKET=gympt-media-test
+
+      # SQS
+      - SQS_ENDPOINT_URL=http://localstack:4566
+      - SQS_POSTURE_EVENT_QUEUE_URL=http://localstack:4566/000000000000/gympt-posture-events-test
+
+      # Testing
+      - ENABLE_KVS_MOCK=true
+      - MAX_WEBSOCKET_CONNECTIONS=100
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./tests:/app/tests
+    command: >
+      sh -c "
+        echo 'Waiting for services...' &&
+        sleep 10 &&
+        echo 'Running tests...' &&
+        pytest tests/ -v --cov=app --cov-report=html --cov-report=term-missing
+      "
+
+  # Test runner (separate container for CI)
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      # Same config as posture-analysis-test
+      - APP_ENV=test
+      - LOG_LEVEL=INFO
+      - MODEL_TYPE=mock
+      - ENABLE_GPU=false
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AWS_REGION=ap-northeast-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - DYNAMODB_ENDPOINT_URL=http://localstack:4566
+      - DYNAMODB_POSTURE_EVENTS_TABLE=gympt-posture-events-test
+      - S3_ENDPOINT_URL=http://localstack:4566
+      - S3_MEDIA_BUCKET=gympt-media-test
+      - SQS_ENDPOINT_URL=http://localstack:4566
+      - ENABLE_KVS_MOCK=true
+    volumes:
+      - ./app:/app/app
+      - ./tests:/app/tests
+      - ./coverage:/app/coverage
+    command: pytest
+    profiles:
+      - test
+
+networks:
+  default:
+    name: gympt-posture-test-network

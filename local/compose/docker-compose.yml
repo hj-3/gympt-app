@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gympt-postgres
+    environment:
+      POSTGRES_DB: gympt
+      POSTGRES_USER: gympt_user
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gympt_user -d gympt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gympt-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: gympt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gympt-network
+
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: gympt-localstack
+    environment:
+      SERVICES: s3,sqs,dynamodb,eventbridge,kinesis
+      DEBUG: 1
+      DATA_DIR: /tmp/localstack/data
+      AWS_DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gympt-network
+
+  # ============================================
+  # Application Services
+  # ============================================
+
+  backend-api:
+    build:
+      context: ../../backend-api
+      dockerfile: Dockerfile
+    container_name: gympt-backend-api
+    environment:
+      ENV: local
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: gympt
+      DB_USER: gympt_user
+      DB_PASSWORD: changeme
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      S3_ENDPOINT_URL: http://localstack:4566
+      SQS_POSTURE_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/gympt-posture-events-dev
+      SQS_REPORT_QUEUE_URL: http://localstack:4566/000000000000/gympt-reports-dev
+      DYNAMODB_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: ap-northeast-2
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gympt-network
+
+  agent-service:
+    build:
+      context: ../../agent-service
+      dockerfile: Dockerfile
+    container_name: gympt-agent-service
+    environment:
+      ENV: local
+      AWS_REGION: ap-northeast-2
+      BEDROCK_REGION: us-west-2
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gympt-network
+
+  posture-analysis-service:
+    build:
+      context: ../../posture-analysis-service
+      dockerfile: Dockerfile
+    container_name: gympt-posture-analysis
+    environment:
+      ENV: local
+      GPU_ENABLED: "false"
+      LOG_LEVEL: DEBUG
+      S3_ENDPOINT_URL: http://localstack:4566
+      SQS_POSTURE_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/gympt-posture-events-dev
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: ap-northeast-2
+    ports:
+      - "8002:8002"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gympt-network
+
+  # ============================================
+  # Monitoring Services
+  # ============================================
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: gympt-prometheus
+    volumes:
+      - ../configs/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - gympt-network
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: gympt-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../configs/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ../configs/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - gympt-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  gympt-network:
+    driver: bridge

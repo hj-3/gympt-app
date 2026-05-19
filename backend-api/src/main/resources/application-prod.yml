@@ -1,0 +1,118 @@
+# ============================================
+# Production Environment Profile (AWS)
+# ============================================
+# This profile is used in AWS EKS production environment
+# Secrets are injected via External Secrets Operator
+# Configuration comes from SSM Parameter Store
+# All security features are enabled
+# ============================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}  # Injected from Kubernetes Secret
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 20000
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate  # Strict validation only
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}  # Injected from Kubernetes Secret
+      timeout: 2000ms
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+logging:
+  level:
+    root: WARN
+    com.gympt: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+
+app:
+  environment: prod
+
+  jwt:
+    secret: ${JWT_SECRET}  # Injected from Kubernetes Secret
+    access-token-ttl: 3600
+    refresh-token-ttl: 2592000
+
+  aws:
+    region: ${AWS_REGION}
+    account-id: ${AWS_ACCOUNT_ID}
+
+    s3:
+      media-bucket: ${S3_MEDIA_BUCKET}
+      report-bucket: ${S3_REPORT_BUCKET}
+
+    dynamodb:
+      workout-sessions-table: ${DYNAMODB_WORKOUT_SESSIONS_TABLE}
+      posture-events-table: ${DYNAMODB_POSTURE_EVENTS_TABLE}
+      wearable-events-table: ${DYNAMODB_WEARABLE_EVENTS_TABLE}
+      agent-interactions-table: ${DYNAMODB_AGENT_INTERACTIONS_TABLE}
+
+    sqs:
+      posture-event-queue-url: ${SQS_POSTURE_EVENT_QUEUE_URL}
+      report-generation-queue-url: ${SQS_REPORT_GENERATION_QUEUE_URL}
+
+    eventbridge:
+      bus-name: ${EVENTBRIDGE_BUS_NAME}
+
+  services:
+    agent:
+      base-url: http://agent-service:8001
+      timeout: 30s
+    posture-analysis:
+      base-url: http://posture-analysis-service:8002
+      timeout: 60s
+    report:
+      base-url: http://report-service:8003
+      timeout: 120s
+    notification:
+      base-url: http://notification-service:8004
+      timeout: 10s
+
+  cors:
+    allowed-origins: https://gympt.example.com,https://api.gympt.example.com
+
+  api:
+    docs:
+      enabled: false  # Disable Swagger in production
+
+  rate-limit:
+    enabled: true
+    requests-per-minute: 60
+
+  feature-flags:
+    ai-agent: true
+    realtime-posture: true
+    wearable-integration: true
+    auto-remediation: true
+
+# Production security settings
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  endpoint:
+    health:
+      show-details: never  # Hide health details in prod
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus  # Limited exposure

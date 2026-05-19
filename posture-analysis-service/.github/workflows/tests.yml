@@ -1,0 +1,197 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: dynamodb,s3,sqs
+          DEBUG: 0
+        options: >-
+          --health-cmd "curl -f http://localhost:4566/_localstack/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with flake8
+        run: |
+          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app tests --count --max-complexity=10 --max-line-length=127 --statistics
+        continue-on-error: true
+
+      - name: Type check with mypy
+        run: |
+          mypy app --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run unit tests
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          AWS_REGION: ap-northeast-2
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          DYNAMODB_ENDPOINT_URL: http://localhost:4566
+          S3_ENDPOINT_URL: http://localhost:4566
+          SQS_ENDPOINT_URL: http://localhost:4566
+        run: |
+          pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term-missing -m unit
+
+      - name: Run WebSocket tests
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+        run: |
+          pytest tests/websocket/ -v -m websocket
+
+      - name: Run integration tests
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+          DYNAMODB_ENDPOINT_URL: http://localhost:4566
+          S3_ENDPOINT_URL: http://localhost:4566
+          SQS_ENDPOINT_URL: http://localhost:4566
+        run: |
+          pytest tests/integration/ -v -m integration
+        continue-on-error: true
+
+      - name: Run E2E tests
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+        run: |
+          pytest tests/e2e/ -v -m e2e
+
+      - name: Generate coverage report
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-fail-under=80 \
+            -m "not slow and not gpu and not performance"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: htmlcov/
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-reports/
+
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run performance tests
+        env:
+          APP_ENV: test
+          MODEL_TYPE: mock
+          REDIS_HOST: localhost
+        run: |
+          pytest tests/performance/ -v -m performance --durations=10
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: test-reports/
+
+  docker-test:
+    name: Docker Integration Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run tests in Docker
+        run: |
+          docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test-runner
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose -f docker-compose.test.yml down -v

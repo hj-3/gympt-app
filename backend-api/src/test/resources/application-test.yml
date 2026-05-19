@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: backend-api-test
+
+  # Test database managed by TestContainers
+  datasource:
+    url: jdbc:tc:postgresql:15-alpine:///gympt_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+
+  flyway:
+    enabled: false  # Disable Flyway in tests, use Hibernate DDL
+
+  # Test Redis managed by TestContainers
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
+server:
+  port: 0  # Random port for tests
+
+logging:
+  level:
+    root: INFO
+    com.gympt: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO
+
+# Application test configuration
+app:
+  name: gympt-test
+  environment: test
+
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tc2lnbmluZy1tdXN0LWJlLWF0LWxlYXN0LTI1Ni1iaXRz
+    access-token-ttl: 3600
+    refresh-token-ttl: 86400
+    issuer: gympt-test
+
+  cors:
+    allowed-origins: http://localhost:3000
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+  aws:
+    region: us-east-1
+    account-id: 123456789012
+
+    s3:
+      bucket-name: test-bucket
+      media-bucket: test-media-bucket
+      report-bucket: test-report-bucket
+      presigned-url-duration: 900
+
+    dynamodb:
+      workout-sessions-table: test-workout-sessions
+      posture-events-table: test-posture-events
+      wearable-events-table: test-wearable-events
+      agent-interactions-table: test-agent-interactions
+
+    eventbridge:
+      bus-name: test-event-bus
+
+  event:
+    source: gympt.backend.test
+
+  rate-limit:
+    enabled: false
+
+  feature-flags:
+    ai-agent: true
+    realtime-posture: true
+    wearable-integration: false

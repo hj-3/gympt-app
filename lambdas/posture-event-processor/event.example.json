@@ -1,0 +1,8 @@
+{
+  "Records": [
+    {
+      "messageId": "msg-12345",
+      "body": "{\"sessionId\": \"session-abc\", \"userId\": \"user-123\", \"eventId\": \"evt-001\", \"timestamp\": \"2024-05-18T10:30:00Z\", \"analysis\": {\"score\": 8.0, \"issues\": [{\"type\": \"knee_valgus\", \"severity\": \"medium\", \"correction\": \"Push knees outward\"}]}}"
+    }
+  ]
+}

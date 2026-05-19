@@ -1,0 +1,95 @@
+# ============================================
+# Local Development Profile
+# ============================================
+# This profile is used for local development with Docker Compose
+# Uses LocalStack for AWS services emulation
+# ============================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gympt
+    username: gympt_user
+    password: changeme_local_password
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update  # Allow schema updates in local
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+
+  flyway:
+    enabled: false  # Disable in local, use JPA auto-update
+
+logging:
+  level:
+    root: INFO
+    com.gympt: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+app:
+  environment: local
+
+  jwt:
+    secret: local_jwt_secret_for_development_only_not_for_production
+
+  aws:
+    region: ap-northeast-2
+
+    s3:
+      endpoint-url: http://localhost:4566
+      media-bucket: gympt-media-local
+      report-bucket: gympt-reports-local
+
+    dynamodb:
+      endpoint-url: http://localhost:4566
+      workout-sessions-table: gympt-workout-sessions-local
+      posture-events-table: gympt-posture-events-local
+      wearable-events-table: gympt-wearable-events-local
+      agent-interactions-table: gympt-agent-interactions-local
+
+    sqs:
+      endpoint-url: http://localhost:4566
+      posture-event-queue-url: http://localhost:4566/000000000000/gympt-posture-events-local
+      report-generation-queue-url: http://localhost:4566/000000000000/gympt-report-generation-local
+
+    eventbridge:
+      endpoint-url: http://localhost:4566
+      bus-name: gympt-events-local
+
+  services:
+    agent:
+      base-url: http://localhost:8001
+    posture-analysis:
+      base-url: http://localhost:8002
+    report:
+      base-url: http://localhost:8003
+    notification:
+      base-url: http://localhost:8004
+
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:3001
+
+  api:
+    docs:
+      enabled: true
+
+  rate-limit:
+    enabled: false  # Disable rate limiting in local
+
+# LocalStack AWS credentials (fake)
+cloud:
+  aws:
+    credentials:
+      access-key: test
+      secret-key: test
+    region:
+      static: ap-northeast-2
+    stack:
+      auto: false

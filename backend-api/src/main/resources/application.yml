@@ -1,0 +1,188 @@
+spring:
+  application:
+    name: ${SERVICE_NAME:backend-api}
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gympt}
+    username: ${DB_USERNAME:gympt_user}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: GymptHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Use Flyway for migrations
+    show-sql: ${ENABLE_SQL_LOGGING:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_batch_fetch_size: 100
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Seoul
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: ${PROMETHEUS_ENABLED:true}
+    tags:
+      application: ${spring.application.name}
+      environment: ${APP_ENV:local}
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.gympt: DEBUG
+    org.springframework.web: ${LOG_LEVEL:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL:INFO}
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ============================================
+# Application-Specific Configuration
+# ============================================
+app:
+  name: ${PROJECT_NAME:gympt}
+  environment: ${APP_ENV:local}
+
+  jwt:
+    secret: ${JWT_SECRET:change-this-secret-in-production}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL_SECONDS:3600}
+    refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL_SECONDS:2592000}
+    issuer: ${PROJECT_NAME:gympt}
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+  aws:
+    region: ${AWS_REGION:ap-northeast-2}
+    account-id: ${AWS_ACCOUNT_ID:}
+
+    s3:
+      bucket-name: ${S3_BUCKET_NAME:gympt-media-local}
+      media-bucket: ${S3_MEDIA_BUCKET:gympt-media-local}
+      report-bucket: ${S3_REPORT_BUCKET:gympt-reports-local}
+      presigned-url-duration: ${S3_PRESIGNED_URL_DURATION:900}
+      endpoint-url: ${S3_ENDPOINT_URL:}
+
+    dynamodb:
+      workout-sessions-table: ${DYNAMODB_WORKOUT_SESSIONS_TABLE:gympt-workout-sessions-local}
+      posture-events-table: ${DYNAMODB_POSTURE_EVENTS_TABLE:gympt-posture-events-local}
+      wearable-events-table: ${DYNAMODB_WEARABLE_EVENTS_TABLE:gympt-wearable-events-local}
+      agent-interactions-table: ${DYNAMODB_AGENT_INTERACTIONS_TABLE:gympt-agent-interactions-local}
+      endpoint-url: ${DYNAMODB_ENDPOINT_URL:}
+
+    sqs:
+      posture-event-queue-url: ${SQS_POSTURE_EVENT_QUEUE_URL}
+      report-generation-queue-url: ${SQS_REPORT_GENERATION_QUEUE_URL}
+      endpoint-url: ${SQS_ENDPOINT_URL:}
+
+    eventbridge:
+      bus-name: ${EVENTBRIDGE_BUS_NAME:gympt-events-local}
+      endpoint-url: ${EVENTBRIDGE_ENDPOINT_URL:}
+
+  event:
+    source: ${EVENT_SOURCE:gympt.backend}
+
+  services:
+    agent:
+      base-url: ${AGENT_SERVICE_BASE_URL:http://localhost:8001}
+      timeout: 30s
+    posture-analysis:
+      base-url: ${POSTURE_ANALYSIS_SERVICE_BASE_URL:http://localhost:8002}
+      timeout: 60s
+    report:
+      base-url: ${REPORT_SERVICE_BASE_URL:http://localhost:8003}
+      timeout: 120s
+    notification:
+      base-url: ${NOTIFICATION_SERVICE_BASE_URL:http://localhost:8004}
+      timeout: 10s
+
+  api:
+    docs:
+      enabled: ${ENABLE_API_DOCS:true}
+      title: GYMPT Backend API
+      description: GYMPT AI Personal Training Platform API
+      version: 1.0.0
+      contact:
+        name: GYMPT Platform Team
+        email: platform@gympt.example.com
+
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${RATE_LIMIT_REQUESTS_PER_MINUTE:60}
+
+  feature-flags:
+    ai-agent: ${FEATURE_AI_AGENT_ENABLED:true}
+    realtime-posture: ${FEATURE_REALTIME_POSTURE_ENABLED:true}
+    wearable-integration: ${FEATURE_WEARABLE_INTEGRATION_ENABLED:false}
+    auto-remediation: ${FEATURE_AUTO_REMEDIATION_ENABLED:false}

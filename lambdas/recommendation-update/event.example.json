@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"userId\": \"user-123\", \"sessionId\": \"session-abc\", \"completed\": true}"
+    }
+  ]
+}

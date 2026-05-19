@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"sessionId\": \"session-abc\", \"videoKey\": \"videos/user-123/workout.mp4\", \"bucket\": \"gympt-videos\"}"
+    }
+  ]
+}

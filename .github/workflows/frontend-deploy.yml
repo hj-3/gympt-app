@@ -1,0 +1,110 @@
+name: Frontend Deploy
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+
+env:
+  NODE_VERSION: '20'
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run type check
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "bucket=${{ vars.S3_BUCKET_PROD }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ vars.CLOUDFRONT_DISTRIBUTION_PROD }}" >> $GITHUB_OUTPUT
+            echo "role=${{ vars.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "bucket=${{ vars.S3_BUCKET_DEV }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ vars.CLOUDFRONT_DISTRIBUTION_DEV }}" >> $GITHUB_OUTPUT
+            echo "role=${{ vars.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" == "prod" ]; then
+            npm run build:prod
+          else
+            npm run build:dev
+          fi
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_ENV: ${{ steps.env.outputs.environment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.env.outputs.role }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Frontend-${{ github.run_id }}
+
+      - name: Sync to S3 (assets with long cache)
+        working-directory: frontend/dist
+        run: |
+          aws s3 sync assets/ s3://${{ steps.env.outputs.bucket }}/assets/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html"
+
+      - name: Sync to S3 (HTML with no cache)
+        working-directory: frontend/dist
+        run: |
+          aws s3 sync . s3://${{ steps.env.outputs.bucket }}/ \
+            --delete \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --exclude "assets/*"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.env.outputs.distribution }} \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "### Deployment Summary :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: ${{ steps.env.outputs.bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: ${{ steps.env.outputs.distribution }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
