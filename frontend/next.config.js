@@ -2,23 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'standalone',
-  
+  output: 'export',  // Static export for S3
+  trailingSlash: true,
+
   images: {
-    domains: [
-      'gympt-dev-media.s3.ap-northeast-2.amazonaws.com',
-      'gympt-prod-media.s3.ap-northeast-2.amazonaws.com',
-    ],
+    unoptimized: true,  // Required for static export
   },
 
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`,
-      },
-    ];
-  },
+  // Remove rewrites for static export
+  // API calls will use full URLs from environment variables
 };
 
 module.exports = nextConfig;
