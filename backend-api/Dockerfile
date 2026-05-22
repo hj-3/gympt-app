@@ -8,17 +8,17 @@ FROM gradle:8.7-jdk21-alpine AS builder
 WORKDIR /app
 
 # Copy Gradle files
-COPY build.gradle settings.gradle ./
+COPY build.gradle settings.gradle gradlew ./
 COPY gradle ./gradle
 
 # Download dependencies (cached layer)
-RUN gradle dependencies --no-daemon || true
+RUN ./gradlew dependencies --no-daemon || true
 
 # Copy source code
 COPY src ./src
 
 # Build application (skip tests for faster builds, tests run in CI)
-RUN gradle clean build -x test --no-daemon
+RUN ./gradlew clean build -x test --no-daemon
 
 # ============================================
 # Stage 2: Runtime
