@@ -18,10 +18,10 @@ RUN ./gradlew dependencies --no-daemon || true
 COPY src ./src
 
 # Build application (skip tests for faster builds, tests run in CI)
-RUN ./gradlew clean build -x test --no-daemon --stacktrace
+RUN ./gradlew clean build -x test --no-daemon --info || (echo "Build failed, showing error:" && cat /app/build/reports/configuration-cache/*/*.txt 2>/dev/null; exit 1)
 
 # Verify JAR was built
-RUN ls -la /app/build/libs/
+RUN ls -la /app/build/libs/ && echo "JAR files:" && ls -1 /app/build/libs/*.jar
 
 # ============================================
 # Stage 2: Runtime
