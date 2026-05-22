@@ -18,7 +18,10 @@ RUN ./gradlew dependencies --no-daemon || true
 COPY src ./src
 
 # Build application (skip tests for faster builds, tests run in CI)
-RUN ./gradlew clean build -x test --no-daemon
+RUN ./gradlew clean build -x test --no-daemon --stacktrace
+
+# Verify JAR was built
+RUN ls -la /app/build/libs/
 
 # ============================================
 # Stage 2: Runtime
