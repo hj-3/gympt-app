@@ -124,10 +124,16 @@ serviceAccountKey.json
 *.tfvars
 !*.tfvars.example
 
-# Sensitive data patterns
+# Sensitive data patterns (exclude credentials but allow source code)
 *password*
 *secret*
 *token*
 !*example*
 !*template*
 !*sample*
+
+# Allow JWT and token-related source code
+!*/src/**/*Token*.java
+!*/src/**/*token*.java
+!*/src/**/*Token*.ts
+!*/src/**/*token*.ts
