@@ -4,6 +4,7 @@ on:
   push:
     branches: [develop, main]
     paths: ['lambdas/**', '.github/workflows/lambda-package.yml']
+  workflow_dispatch:  # 수동 실행 가능
 
 env:
   PYTHON_VERSION: '3.12'
