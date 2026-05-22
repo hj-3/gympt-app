@@ -15,8 +15,8 @@ on:
 env:
   JAVA_VERSION: '21'
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: gympt/backend-api
-  GITOPS_REPO: gympt/gympt-gitops
+  ECR_REPOSITORY: backend-api
+  GITOPS_REPO: hj-3/gympt-gitops
 
 jobs:
   test:
@@ -46,24 +46,24 @@ jobs:
       id-token: write
       contents: read
     outputs:
-      short-sha: ${{ steps.vars.outputs.short-sha }}
+      image-tag: ${{ steps.vars.outputs.image-tag }}
+      environment: ${{ steps.env.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Set variables
         id: vars
-        run: echo "short-sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        run: |
+          IMAGE_TAG="${{ github.run_number }}${GITHUB_SHA:0:7}"
+          echo "short-sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
       - name: Determine environment
         id: env
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "role=${{ vars.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
-            echo "ecr=${{ vars.ECR_REGISTRY_PROD }}" >> $GITHUB_OUTPUT
           else
             echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "role=${{ vars.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
-            echo "ecr=${{ vars.ECR_REGISTRY_DEV }}" >> $GITHUB_OUTPUT
           fi
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,11 +84,13 @@ jobs:
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ steps.vars.outputs.short-sha }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image-tag }}
+          ENVIRONMENT: ${{ steps.env.outputs.environment }}
         run: |
           cd backend-api
-          docker build -t ${ECR_REGISTRY}/gympt-${{ steps.env.outputs.environment }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG} .
-          docker push ${ECR_REGISTRY}/gympt-${{ steps.env.outputs.environment }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}
+          docker build -t ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG} .
+          docker push ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          echo "Built and pushed: ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
   update-gitops:
     name: Update GitOps
@@ -102,16 +104,21 @@ jobs:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_PAT }}
       - name: Update image tag
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          ENVIRONMENT: ${{ needs.build-and-push.outputs.environment }}
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            VALUES_FILE="values-prod.yaml"
-          else
-            VALUES_FILE="values-dev.yaml"
-          fi
-          cd charts/backend-api
-          sed -i "s/tag: \".*\"/tag: \"${{ needs.build-and-push.outputs.short-sha }}\"/" $VALUES_FILE
+          VALUES_FILE="charts/backend-api/values-${ENVIRONMENT}.yaml"
+
+          echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
+          sed -i "s/tag: \".*\"/tag: \"${IMAGE_TAG}\"/" ${VALUES_FILE}
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add $VALUES_FILE
-          git commit -m "Update backend-api image to ${{ needs.build-and-push.outputs.short-sha }}"
+          git add ${VALUES_FILE}
+          git commit -m "ci: Update backend-api ${ENVIRONMENT} image to ${IMAGE_TAG}
+
+Triggered by: ${{ github.sha }}
+Environment: ${ENVIRONMENT}
+Image: gympt-${ENVIRONMENT}/backend-api:${IMAGE_TAG}"
           git push
