@@ -7,8 +7,11 @@ plugins {
 
 group = 'com.gympt'
 version = '0.1.0'
-sourceCompatibility = '21'
-targetCompatibility = '21'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
 // Specify main class to avoid ambiguity
 springBoot {
@@ -54,14 +57,17 @@ dependencies {
     // Monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
-    // Utils
+    // Utils - Order matters: Lombok must be processed first
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
-    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
-    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
-    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    testAnnotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
     // AWS SDK
     implementation platform('software.amazon.awssdk:bom:2.25.16')
@@ -91,6 +97,21 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
     }
+}
+
+// Explicitly configure annotation processing
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += [
+        '-parameters',
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
+    ]
+    options.annotationProcessorPath = configurations.annotationProcessor
+}
+
+// Ensure compileJava depends on processResources
+tasks.named('compileJava') {
+    dependsOn processResources
 }
 
 tasks.named('test') {

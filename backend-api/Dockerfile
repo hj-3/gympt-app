@@ -8,7 +8,7 @@ FROM gradle:8.7-jdk21-alpine AS builder
 WORKDIR /app
 
 # Copy Gradle files
-COPY build.gradle settings.gradle gradlew ./
+COPY build.gradle settings.gradle gradlew gradle.properties lombok.config ./
 COPY gradle ./gradle
 
 # Download dependencies (cached layer)

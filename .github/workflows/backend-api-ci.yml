@@ -31,11 +31,17 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
-      - name: Run tests
+      - name: Grant execute permission
+        working-directory: backend-api
+        run: chmod +x gradlew
+      - name: Verify Gradle setup
         working-directory: backend-api
         run: |
-          chmod +x gradlew
-          ./gradlew test --no-daemon
+          ls -la
+          ./gradlew --version
+      - name: Run tests
+        working-directory: backend-api
+        run: ./gradlew clean test --no-daemon --refresh-dependencies --stacktrace
 
   build-and-push:
     name: Build and Push Docker Image
