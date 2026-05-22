@@ -86,7 +86,10 @@ app:
       base-url: http://notification-service:8004
 
   cors:
-    allowed-origins: https://dev.gympt.example.com,https://api-dev.gympt.example.com
+    allowed-origins: https://dev.g2mpt.com,https://api-dev.g2mpt.com,http://localhost:3000
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
 
   api:
     docs:
