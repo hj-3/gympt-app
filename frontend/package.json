@@ -22,7 +22,7 @@
     "zustand": "4.5.2",
     "react-query": "3.39.3",
     "recharts": "2.12.7",
-    "amazon-kinesis-video-streams-webrtc": "3.0.0",
+    "amazon-kinesis-video-streams-webrtc": "2.8.0",
     "date-fns": "3.6.0",
     "clsx": "2.1.1",
     "lucide-react": "0.379.0",
