@@ -116,9 +116,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add ${VALUES_FILE}
-          git commit -m "ci: Update backend-api ${ENVIRONMENT} image to ${IMAGE_TAG}
-
-Triggered by: ${{ github.sha }}
-Environment: ${ENVIRONMENT}
-Image: gympt-${ENVIRONMENT}/backend-api:${IMAGE_TAG}"
+          git commit -m "ci: Update backend-api ${ENVIRONMENT} image to ${IMAGE_TAG}" \
+            -m "Triggered by: ${{ github.sha }}" \
+            -m "Environment: ${ENVIRONMENT}" \
+            -m "Image: gympt-${ENVIRONMENT}/backend-api:${IMAGE_TAG}"
           git push
