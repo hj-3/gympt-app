@@ -72,13 +72,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Login to ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get AWS Account ID
+        id: account
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+
       - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend-api
-          push: true
-          tags: ${{ steps.env.outputs.ecr }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.short-sha }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.vars.outputs.short-sha }}
+        run: |
+          cd backend-api
+          docker build -t ${ECR_REGISTRY}/gympt-${{ steps.env.outputs.environment }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG} .
+          docker push ${ECR_REGISTRY}/gympt-${{ steps.env.outputs.environment }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}
 
   update-gitops:
     name: Update GitOps
