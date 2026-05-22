@@ -79,12 +79,8 @@ jobs:
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "role=${{ vars.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
-            echo "bucket=${{ vars.LAMBDA_ARTIFACT_BUCKET_PROD }}" >> $GITHUB_OUTPUT
           else
             echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "role=${{ vars.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
-            echo "bucket=${{ vars.LAMBDA_ARTIFACT_BUCKET_DEV }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Configure AWS credentials
@@ -94,11 +90,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get S3 bucket
+        id: bucket
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="gympt-${{ steps.env.outputs.environment }}-lambda-artifacts-${ACCOUNT_ID}"
+          echo "bucket=${BUCKET}" >> $GITHUB_OUTPUT
+          echo "Lambda artifacts bucket: ${BUCKET}"
+
       - name: Upload to S3
         working-directory: lambdas/${{ matrix.lambda }}
         run: |
           aws s3 cp lambda-${{ matrix.lambda }}-${GITHUB_SHA:0:7}.zip \
-            s3://${{ steps.env.outputs.bucket }}/lambdas/${{ matrix.lambda }}/
+            s3://${{ steps.bucket.outputs.bucket }}/${{ matrix.lambda }}.zip
 
       - name: Update Lambda function (optional)
         if: vars.AUTO_UPDATE_LAMBDA == 'true'
