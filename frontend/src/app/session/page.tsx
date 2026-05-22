@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WebSocketClient } from '@/lib/websocket-client';
 import { KVSWebRTCClient } from '@/lib/kvs-client';
@@ -9,7 +9,7 @@ import { useWorkoutStore } from '@/lib/store';
 import { RealtimeFeedback } from '@/types';
 import toast from 'react-hot-toast';
 
-export default function SessionPage() {
+function SessionContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -125,5 +125,13 @@ export default function SessionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SessionPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading session...</div>}>
+      <SessionContent />
+    </Suspense>
   );
 }
