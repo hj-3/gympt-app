@@ -137,7 +137,7 @@ public class TestDataFactory {
             .startTime(Instant.now().minusSeconds(3600))
             .endTime(Instant.now())
             .totalDuration(3600)
-            .caloriesBurned(500)
+            .caloriesBurned(BigDecimal.valueOf(500))
             .status(WorkoutSession.SessionStatus.COMPLETED)
             .notes("Completed workout session")
             .build();
@@ -152,7 +152,7 @@ public class TestDataFactory {
     public static EndWorkoutSessionRequest createEndWorkoutSessionRequest() {
         return EndWorkoutSessionRequest.builder()
             .totalDuration(3600)
-            .caloriesBurned(450)
+            .caloriesBurned(BigDecimal.valueOf(450))
             .notes("Great workout!")
             .build();
     }
@@ -162,11 +162,12 @@ public class TestDataFactory {
         return WorkoutPlan.builder()
             .id(UUID.randomUUID())
             .user(user)
-            .name("Test Workout Plan")
+            .planName("Test Workout Plan")
             .description("A test workout plan")
-            .durationWeeks(8)
-            .difficulty(WorkoutPlan.Difficulty.INTERMEDIATE)
-            .isActive(true)
+            .startDate(LocalDate.now())
+            .endDate(LocalDate.now().plusWeeks(8))
+            .agentGenerated(false)
+            .status(WorkoutPlan.PlanStatus.ACTIVE)
             .build();
     }
 
@@ -195,10 +196,11 @@ public class TestDataFactory {
     public static Report createTestReport(User user) {
         return Report.builder()
             .id(UUID.randomUUID())
-            .userId(user.getId())
-            .reportType(Report.ReportType.WORKOUT_SUMMARY)
+            .user(user)
+            .reportType(Report.ReportType.WEEKLY)
+            .generatedDate(LocalDate.now())
+            .s3Key("reports/test-report.pdf")
             .status(Report.ReportStatus.PENDING)
-            .generatedAt(Instant.now())
             .build();
     }
 

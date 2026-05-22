@@ -216,11 +216,11 @@ class WorkoutGoalServiceTest {
         // Act
         WorkoutGoalResponse response = workoutGoalService.updateGoalStatus(
             testGoalId,
-            WorkoutGoal.GoalStatus.CANCELLED
+            WorkoutGoal.GoalStatus.ABANDONED
         );
 
         // Assert
-        assertThat(response.getStatus()).isEqualTo(WorkoutGoal.GoalStatus.CANCELLED);
+        assertThat(response.getStatus()).isEqualTo(WorkoutGoal.GoalStatus.ABANDONED);
     }
 
     @Test

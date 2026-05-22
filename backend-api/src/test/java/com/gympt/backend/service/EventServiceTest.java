@@ -86,7 +86,7 @@ class EventServiceTest {
     @DisplayName("Should publish report generation request successfully")
     void shouldPublishReportGenerationSuccessfully() throws Exception {
         // Arrange
-        Report.ReportType reportType = Report.ReportType.WORKOUT_SUMMARY;
+        Report.ReportType reportType = Report.ReportType.WEEKLY;
         String eventDetailJson = "{\"userId\":\"" + testUserId + "\",\"reportType\":\"" + reportType.name() + "\"}";
 
         when(objectMapper.writeValueAsString(any())).thenReturn(eventDetailJson);
