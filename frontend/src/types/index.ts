@@ -149,7 +149,7 @@ export interface WeeklyProgress {
 
 // WebSocket Message Types
 export interface WSMessage {
-  type: 'posture_feedback' | 'session_update' | 'error';
+  type: 'posture_feedback' | 'session_update' | 'error' | 'ping' | 'posture_frame';
   payload: any;
 }
 
