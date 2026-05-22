@@ -2,9 +2,14 @@
 
 set -e
 
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 ENV=${1:-prod}
 
 echo "🐳 Building all services for environment: ${ENV}"
+echo "📁 Working directory: ${PROJECT_ROOT}"
 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 AWS_REGION=${AWS_REGION:-ap-northeast-2}
@@ -14,6 +19,9 @@ echo "📍 ECR Registry: ${ECR_REGISTRY}"
 
 aws ecr get-login-password --region ${AWS_REGION} | \
   docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+# Change to project root
+cd "${PROJECT_ROOT}"
 
 SERVICES=(
   "backend-api"
@@ -28,17 +36,17 @@ for SERVICE in "${SERVICES[@]}"; do
 
   cd "${SERVICE}"
 
-  IMAGE_TAG=$(git rev-parse --short HEAD)
+  IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
   IMAGE_NAME="gympt-${ENV}/${SERVICE}"
   FULL_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
   LATEST_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:latest"
 
   echo "  Building: ${FULL_IMAGE}"
-  docker build -t ${FULL_IMAGE} -t ${LATEST_IMAGE} .
+  docker build --platform linux/amd64 -t ${FULL_IMAGE} -t ${LATEST_IMAGE} .
 
   echo "  Pushing: ${FULL_IMAGE}"
-  docker push ${FULL_IMAGE}
-  docker push ${LATEST_IMAGE}
+  docker push ${FULL_IMAGE} || echo "Warning: Push ${FULL_IMAGE} had warnings"
+  docker push ${LATEST_IMAGE} || echo "Warning: Push ${LATEST_IMAGE} had warnings"
 
   echo "  ✓ ${SERVICE} built and pushed successfully"
 

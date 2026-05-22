@@ -10,6 +10,11 @@ version = '0.1.0'
 sourceCompatibility = '21'
 targetCompatibility = '21'
 
+// Specify main class to avoid ambiguity
+springBoot {
+    mainClass = 'com.gympt.backend.GymptBackendApplication'
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor

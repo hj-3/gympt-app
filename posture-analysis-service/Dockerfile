@@ -26,11 +26,15 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.12-slim
 
 # Install runtime dependencies
+# Note: Using python-opencv which includes all necessary OpenCV libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libopencv-core4.5d \
-    libopencv-imgcodecs4.5d \
-    libopencv-imgproc4.5d \
+    libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

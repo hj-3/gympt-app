@@ -20,7 +20,7 @@ spring:
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: validate  # Strict validation only
+      ddl-auto: update  # Auto-create/update schema (TODO: use Flyway migrations)
 
   data:
     redis:
@@ -28,9 +28,11 @@ spring:
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}  # Injected from Kubernetes Secret
       timeout: 2000ms
+      ssl:
+        enabled: true
 
   flyway:
-    enabled: true
+    enabled: false  # Disabled until migration files are created
     baseline-on-migrate: false
 
 logging:
