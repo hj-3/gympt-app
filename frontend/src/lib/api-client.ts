@@ -89,7 +89,7 @@ class ApiClient {
     }
 
     const response = await axios.post<AuthResponse>(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
       { refreshToken: this.refreshToken }
     );
 
@@ -134,7 +134,7 @@ class ApiClient {
 
   // Auth API
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/api/auth/login', {
+    const response = await this.client.post<AuthResponse>('/api/v1/auth/login', {
       email,
       password,
     });
@@ -143,7 +143,7 @@ class ApiClient {
   }
 
   async signup(email: string, password: string, name: string): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/api/auth/signup', {
+    const response = await this.client.post<AuthResponse>('/api/v1/auth/register', {
       email,
       password,
       name,
@@ -154,7 +154,7 @@ class ApiClient {
 
   async logout(): Promise<void> {
     try {
-      await this.client.post('/api/auth/logout');
+      await this.client.post('/api/v1/auth/logout');
     } finally {
       this.clearTokens();
     }
