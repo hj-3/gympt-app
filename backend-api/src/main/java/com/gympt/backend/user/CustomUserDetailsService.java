@@ -19,9 +19,19 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-        User user = userRepository.findById(UUID.fromString(userId))
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+        User user;
+
+        // Try to parse as UUID first (for JWT authentication with userId)
+        try {
+            UUID userId = UUID.fromString(usernameOrEmail);
+            user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + usernameOrEmail));
+        } catch (IllegalArgumentException e) {
+            // If not a valid UUID, treat as email (for login authentication)
+            user = userRepository.findByEmail(usernameOrEmail)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + usernameOrEmail));
+        }
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getId().toString())
