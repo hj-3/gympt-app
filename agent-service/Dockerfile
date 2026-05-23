@@ -48,7 +48,7 @@ USER gympt
 
 # Add local Python packages to PATH
 ENV PATH=/home/gympt/.local/bin:$PATH \
-    PYTHONPATH=/app \
+    PYTHONPATH=/app:/home/gympt/.local/lib/python3.12/site-packages \
     PYTHONUNBUFFERED=1
 
 # Expose port
