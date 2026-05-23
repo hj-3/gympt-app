@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,4 +24,8 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
         Instant startDate,
         Instant endDate
     );
+
+    @Query("SELECT ws FROM WorkoutSession ws WHERE ws.user.id = :userId " +
+           "AND ws.startTime > :startTime ORDER BY ws.startTime DESC")
+    List<WorkoutSession> findByUserIdAndStartTimeAfter(UUID userId, LocalDateTime startTime);
 }
