@@ -41,6 +41,8 @@ export default function SignupPage() {
 
     if (password.length < 8) {
       newErrors.password = '비밀번호는 8자 이상이어야 합니다';
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(password)) {
+      newErrors.password = '비밀번호는 대문자, 소문자, 숫자를 각각 최소 1개 포함해야 합니다';
     }
 
     if (password !== confirmPassword) {
@@ -111,9 +113,9 @@ export default function SignupPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="8자 이상 입력하세요"
+            placeholder="예: Gympt1234"
             error={errors.password}
-            helperText="영문, 숫자 포함 8자 이상"
+            helperText="대문자, 소문자, 숫자 각 1개 이상, 8자 이상"
             required
           />
 
