@@ -67,7 +67,19 @@ export default function SignupPage() {
       toast.success('계정이 생성되었습니다!');
       router.push('/dashboard');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error?.message || '회원가입에 실패했습니다';
+      let errorMessage = '회원가입에 실패했습니다';
+
+      if (error.response?.status === 400) {
+        const message = error.response?.data?.error?.message || error.response?.data?.message;
+        if (message?.includes('already exists') || message?.includes('이미 존재')) {
+          errorMessage = '이미 가입된 이메일입니다. 로그인해주세요.';
+        } else if (message?.includes('Password')) {
+          errorMessage = '비밀번호는 대문자, 소문자, 숫자를 각각 포함해야 합니다';
+        } else {
+          errorMessage = message || errorMessage;
+        }
+      }
+
       toast.error(errorMessage);
     } finally {
       setLoading(false);

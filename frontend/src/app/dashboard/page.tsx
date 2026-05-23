@@ -42,7 +42,16 @@ export default function DashboardPage() {
         setStats(statsRes.data);
       } catch (error: any) {
         console.error('Failed to load dashboard data:', error);
-        toast.error('데이터를 불러오는데 실패했습니다');
+        // Set empty stats instead of showing error
+        setStats({
+          totalMinutes: 0,
+          completedSessions: 0,
+          avgPostureScore: 0,
+          weeklyWorkouts: 0,
+          recentSessions: [],
+          weeklyData: [],
+        });
+        // toast.error('데이터를 불러오는데 실패했습니다');
       } finally {
         setLoading(false);
       }
