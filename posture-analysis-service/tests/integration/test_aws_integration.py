@@ -2,7 +2,7 @@
 import pytest
 import json
 from datetime import datetime
-from moto import mock_dynamodb, mock_s3, mock_sqs
+from moto import mock_aws
 import boto3
 
 from app.clients.dynamodb_client import AsyncDynamoDBClient
@@ -23,7 +23,7 @@ def aws_credentials(monkeypatch):
 @pytest.fixture
 def dynamodb_table(aws_credentials):
     """Create mock DynamoDB table."""
-    with mock_dynamodb():
+    with mock_aws():
         # Create table
         client = boto3.client("dynamodb", region_name=settings.aws_region)
         client.create_table(
@@ -44,7 +44,7 @@ def dynamodb_table(aws_credentials):
 @pytest.fixture
 def s3_bucket(aws_credentials):
     """Create mock S3 bucket."""
-    with mock_s3():
+    with mock_aws():
         client = boto3.client("s3", region_name=settings.aws_region)
         client.create_bucket(
             Bucket=settings.s3_media_bucket,
@@ -56,7 +56,7 @@ def s3_bucket(aws_credentials):
 @pytest.fixture
 def sqs_queue(aws_credentials):
     """Create mock SQS queue."""
-    with mock_sqs():
+    with mock_aws():
         client = boto3.client("sqs", region_name=settings.aws_region)
         response = client.create_queue(QueueName="gympt-posture-test-queue")
         queue_url = response["QueueUrl"]

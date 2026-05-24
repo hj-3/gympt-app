@@ -94,10 +94,7 @@ jobs:
         run: |
           cd report-service
           docker build -t ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG} .
-          docker tag ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-            ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:latest
           docker push ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          docker push ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:latest
 
   update-gitops:
     name: Update GitOps Repository

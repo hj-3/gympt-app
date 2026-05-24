@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 from unittest.mock import patch, MagicMock
 
-from app.pose_estimator.mediapipe_estimator import MediaPipeEstimator
+from app.pose_estimator.mediapipe_estimator import MediaPipePoseEstimator
 from tests.utils.assertions import assert_landmarks_valid, assert_confidence_threshold
 
 
@@ -17,7 +17,7 @@ class TestMediaPipeEstimator:
     @pytest.fixture
     def estimator(self):
         """Create MediaPipe estimator instance."""
-        return MediaPipeEstimator(use_gpu=False)
+        return MediaPipePoseEstimator(enable_gpu=False)
 
     async def test_estimator_initialization(self, estimator):
         """Test estimator initializes correctly."""
