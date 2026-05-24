@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { Button } from '@/components/ui/Button';
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
+import { changePassword } from '@/lib/auth';
 import toast from 'react-hot-toast';
 
 export default function ChangePasswordPage() {
@@ -31,12 +32,19 @@ export default function ChangePasswordPage() {
 
     setLoading(true);
     try {
-      // TODO: Implement password change API
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await changePassword(formData.currentPassword, formData.newPassword);
       toast.success('비밀번호가 변경되었습니다');
-      router.back();
-    } catch (error) {
-      toast.error('비밀번호 변경에 실패했습니다');
+      setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => router.back(), 1000);
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      if (error.name === 'NotAuthorizedException') {
+        toast.error('현재 비밀번호가 일치하지 않습니다');
+      } else if (error.name === 'LimitExceededException') {
+        toast.error('너무 많은 시도를 했습니다. 잠시 후 다시 시도해주세요');
+      } else {
+        toast.error('비밀번호 변경에 실패했습니다');
+      }
     } finally {
       setLoading(false);
     }

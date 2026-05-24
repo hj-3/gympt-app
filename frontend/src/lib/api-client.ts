@@ -137,6 +137,51 @@ class ApiClient {
     const response = await this.client.get(`/api/v1/kvs/credentials/${sessionId}`);
     return response.data;
   }
+
+  // AI Agent API (agent-service)
+  async getWorkoutRecommendation(data: {
+    user_id: string;
+    goal: string;
+    fitness_level: string;
+    days_per_week: number;
+    equipment_available?: string[];
+    injuries_or_limitations?: string;
+  }): Promise<ApiResponse<any>> {
+    const agentBaseURL = process.env.NEXT_PUBLIC_AGENT_API_URL || `${process.env.NEXT_PUBLIC_API_URL}/agent`;
+    const response = await axios.post(
+      `${agentBaseURL}/workout/recommend`,
+      data,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getAuthToken()}`,
+        },
+        timeout: 60000, // AI 응답은 시간이 걸릴 수 있음
+      }
+    );
+    return response.data;
+  }
+
+  async getPostureFeedback(data: {
+    user_id: string;
+    session_id: string;
+    exercise_name: string;
+    posture_issues?: string[];
+  }): Promise<ApiResponse<any>> {
+    const agentBaseURL = process.env.NEXT_PUBLIC_AGENT_API_URL || `${process.env.NEXT_PUBLIC_API_URL}/agent`;
+    const response = await axios.post(
+      `${agentBaseURL}/posture/feedback`,
+      data,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getAuthToken()}`,
+        },
+        timeout: 60000,
+      }
+    );
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -1,4 +1,4 @@
-import { signIn, signUp, signOut, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { signIn, signUp, signOut, getCurrentUser, fetchAuthSession, updatePassword } from 'aws-amplify/auth';
 
 export interface CognitoUser {
   userId: string;
@@ -96,4 +96,8 @@ export async function isAuthenticated(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
+  await updatePassword({ oldPassword, newPassword });
 }

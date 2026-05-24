@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/lib/api-client';
 import {
   ChevronLeftIcon,
   SparklesIcon,
@@ -10,45 +12,64 @@ import {
   ChartBarIcon,
   LightBulbIcon,
 } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+
+interface Recommendation {
+  title: string;
+  content: string;
+  category: string;
+  createdAt: string;
+}
 
 export default function AICoachPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-
-  // Mock AI recommendations
-  const recommendations = [
-    {
-      id: 1,
-      category: 'workout',
-      title: '상체 근력 강화 필요',
-      description: '최근 운동 분석 결과, 하체에 비해 상체 근력이 부족합니다. 벤치프레스와 풀업 운동을 주 2-3회 추가하는 것을 권장합니다.',
-      priority: 'high',
-      icon: FireIcon,
-    },
-    {
-      id: 2,
-      category: 'posture',
-      title: '스쿼트 자세 개선',
-      description: '스쿼트 시 무릎이 발끝보다 앞으로 나가는 경향이 있습니다. 엉덩이를 더 뒤로 빼고 무게중심을 발뒤꿈치에 두세요.',
-      priority: 'medium',
-      icon: ChartBarIcon,
-    },
-    {
-      id: 3,
-      category: 'nutrition',
-      title: '단백질 섭취 증가',
-      description: '근육 성장을 위해 일일 체중 1kg당 1.6-2.0g의 단백질 섭취가 필요합니다. 현재 섭취량이 부족할 수 있으니 닭가슴살, 계란, 프로틴 쉐이크 등을 추가하세요.',
-      priority: 'medium',
-      icon: LightBulbIcon,
-    },
-  ];
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    goal: 'WEIGHT_LOSS',
+    fitness_level: 'INTERMEDIATE',
+    days_per_week: 3,
+    equipment_available: ['dumbbells', 'barbell'],
+    injuries_or_limitations: '',
+  });
 
   const handleGetNewRecommendation = async () => {
+    if (!user?.userId) {
+      toast.error('사용자 정보를 찾을 수 없습니다');
+      return;
+    }
+
     setLoading(true);
-    // TODO: Call AI Agent API
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setLoading(false);
-    alert('새로운 추천을 받았습니다!');
+    try {
+      const response = await apiClient.getWorkoutRecommendation({
+        user_id: user.userId,
+        goal: formData.goal,
+        fitness_level: formData.fitness_level,
+        days_per_week: formData.days_per_week,
+        equipment_available: formData.equipment_available,
+        injuries_or_limitations: formData.injuries_or_limitations || undefined,
+      });
+
+      if (response && response.recommendations) {
+        toast.success('새로운 추천을 받았습니다!');
+        // 실제로는 response에서 추천 내용을 파싱해서 사용
+        const newRec: Recommendation = {
+          title: '맞춤 운동 프로그램',
+          content: response.recommendations || '추천 내용을 불러오는 중...',
+          category: 'workout',
+          createdAt: new Date().toISOString(),
+        };
+        setRecommendations([newRec, ...recommendations]);
+        setShowForm(false);
+      }
+    } catch (error: any) {
+      console.error('Failed to get recommendation:', error);
+      toast.error('추천을 받는데 실패했습니다');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,54 +108,129 @@ export default function AICoachPage() {
             </div>
 
             {/* Get New Recommendation */}
-            <button
-              onClick={handleGetNewRecommendation}
-              disabled={loading}
-              className="w-full bg-blue-600 text-white rounded-2xl p-4 shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                  <span className="font-medium">분석 중...</span>
-                </>
-              ) : (
-                <>
-                  <SparklesIcon className="w-5 h-5" />
-                  <span className="font-medium">새로운 추천 받기</span>
-                </>
-              )}
-            </button>
+            {!showForm ? (
+              <button
+                onClick={() => setShowForm(true)}
+                className="w-full bg-blue-600 text-white rounded-2xl p-4 shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                <span className="font-medium">새로운 추천 받기</span>
+              </button>
+            ) : (
+              <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  운동 목표 설정
+                </h3>
 
-            {/* Recommendations List */}
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-900 px-1">
-                최근 추천 사항
-              </h3>
-              {recommendations.map((rec) => (
-                <RecommendationCard key={rec.id} recommendation={rec} />
-              ))}
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    운동 목표
+                  </label>
+                  <select
+                    value={formData.goal}
+                    onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="WEIGHT_LOSS">체중 감량</option>
+                    <option value="MUSCLE_GAIN">근육 증가</option>
+                    <option value="ENDURANCE">지구력 향상</option>
+                    <option value="GENERAL_FITNESS">전반적인 건강</option>
+                  </select>
+                </div>
 
-            {/* Stats */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                AI 코치 활동
-              </h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">12</p>
-                  <p className="text-xs text-gray-600 mt-1">총 추천</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    현재 운동 수준
+                  </label>
+                  <select
+                    value={formData.fitness_level}
+                    onChange={(e) => setFormData({ ...formData, fitness_level: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="BEGINNER">초급</option>
+                    <option value="INTERMEDIATE">중급</option>
+                    <option value="ADVANCED">고급</option>
+                  </select>
                 </div>
+
                 <div>
-                  <p className="text-2xl font-bold text-green-600">8</p>
-                  <p className="text-xs text-gray-600 mt-1">완료</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    주간 운동 횟수
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="7"
+                    value={formData.days_per_week}
+                    onChange={(e) => setFormData({ ...formData, days_per_week: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
+
                 <div>
-                  <p className="text-2xl font-bold text-orange-600">4</p>
-                  <p className="text-xs text-gray-600 mt-1">진행 중</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    부상 또는 제한사항
+                  </label>
+                  <textarea
+                    value={formData.injuries_or_limitations}
+                    onChange={(e) => setFormData({ ...formData, injuries_or_limitations: e.target.value })}
+                    placeholder="예: 무릎 통증, 허리 디스크 등"
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowForm(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleGetNewRecommendation}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                        <span>분석 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <SparklesIcon className="w-5 h-5" />
+                        <span>추천 받기</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Recommendations List */}
+            {recommendations.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900 px-1">
+                  최근 추천 사항
+                </h3>
+                {recommendations.map((rec, index) => (
+                  <RecommendationCard key={index} recommendation={rec} />
+                ))}
+              </div>
+            )}
+
+            {recommendations.length === 0 && !showForm && (
+              <div className="bg-white rounded-3xl p-12 shadow-sm text-center">
+                <SparklesIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  추천 내역이 없습니다
+                </h3>
+                <p className="text-sm text-gray-500">
+                  첫 AI 추천을 받아보세요
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -142,47 +238,31 @@ export default function AICoachPage() {
   );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: any }) {
-  const Icon = recommendation.icon;
-  const priorityColors = {
-    high: 'bg-red-50 border-red-200',
-    medium: 'bg-orange-50 border-orange-200',
-    low: 'bg-blue-50 border-blue-200',
+function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+  const categoryIcons: Record<string, any> = {
+    workout: FireIcon,
+    posture: ChartBarIcon,
+    nutrition: LightBulbIcon,
   };
 
-  const priorityLabels = {
-    high: '높음',
-    medium: '보통',
-    low: '낮음',
-  };
-
-  const priorityTextColors = {
-    high: 'text-red-700',
-    medium: 'text-orange-700',
-    low: 'text-blue-700',
-  };
+  const Icon = categoryIcons[recommendation.category] || LightBulbIcon;
 
   return (
-    <div className={`bg-white rounded-3xl p-5 shadow-sm border-2 ${priorityColors[recommendation.priority as keyof typeof priorityColors]}`}>
+    <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-blue-100">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
           <Icon className="w-6 h-6 text-blue-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-base font-semibold text-gray-900">
-              {recommendation.title}
-            </h4>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priorityTextColors[recommendation.priority as keyof typeof priorityTextColors]} bg-opacity-20`}>
-              {priorityLabels[recommendation.priority as keyof typeof priorityLabels]}
-            </span>
-          </div>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            {recommendation.description}
+          <h4 className="text-base font-semibold text-gray-900 mb-2">
+            {recommendation.title}
+          </h4>
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+            {recommendation.content}
           </p>
-          <button className="mt-3 text-sm text-blue-600 font-medium hover:text-blue-700">
-            자세히 보기 →
-          </button>
+          <p className="text-xs text-gray-400 mt-3">
+            {new Date(recommendation.createdAt).toLocaleDateString('ko-KR')}
+          </p>
         </div>
       </div>
     </div>
