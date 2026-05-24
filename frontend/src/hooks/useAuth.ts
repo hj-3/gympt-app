@@ -9,7 +9,9 @@ export function useAuth() {
     login,
     signup,
     logout,
+    signOut: logout, // Alias for logout
     loadUser,
-    isLoading: false, // Can be enhanced with loading state
+    loading: false, // Can be enhanced with loading state
+    isLoading: false,
   };
 }
