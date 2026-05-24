@@ -42,19 +42,27 @@ export async function loginWithCognito(email: string, password: string): Promise
 export async function signupWithCognito(
   email: string,
   password: string,
-  name: string
+  name: string,
+  phoneNumber?: string
 ): Promise<{ userId: string; email: string }> {
   // Generate username from email (without @ and domain)
   const username = email.split('@')[0].toLowerCase();
+
+  const userAttributes: any = {
+    email,
+    name,
+  };
+
+  // Add phone_number if provided
+  if (phoneNumber) {
+    userAttributes.phone_number = phoneNumber;
+  }
 
   const { userId, isSignUpComplete } = await signUp({
     username,
     password,
     options: {
-      userAttributes: {
-        email,
-        name,
-      },
+      userAttributes,
     },
   });
 

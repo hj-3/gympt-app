@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
@@ -24,6 +25,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    phoneNumber: '',
   });
 
   const validateForm = () => {
@@ -32,6 +34,7 @@ export default function SignupPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      phoneNumber: '',
     };
 
     if (name.length < 2) {
@@ -44,12 +47,21 @@ export default function SignupPage() {
 
     if (password.length < 8) {
       newErrors.password = '비밀번호는 8자 이상이어야 합니다';
-    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(password)) {
-      newErrors.password = '비밀번호는 대문자, 소문자, 숫자를 각각 최소 1개 포함해야 합니다';
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/.test(password)) {
+      newErrors.password = '비밀번호는 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야 합니다';
     }
 
     if (password !== confirmPassword) {
       newErrors.confirmPassword = '비밀번호가 일치하지 않습니다';
+    }
+
+    // Phone number validation (E.164 format: +821012345678)
+    if (phoneNumber && !/^\+[1-9]\d{1,14}$/.test(phoneNumber)) {
+      newErrors.phoneNumber = '전화번호는 +821012345678 형식으로 입력해주세요';
+    }
+
+    if (!phoneNumber) {
+      newErrors.phoneNumber = '전화번호는 필수입니다';
     }
 
     setErrors(newErrors);
@@ -66,7 +78,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await signup(email, password, name);
+      await signup(email, password, name, phoneNumber);
       toast.success('인증 코드가 이메일로 전송되었습니다!');
       setNeedsConfirmation(true);
     } catch (error: any) {
@@ -191,13 +203,24 @@ export default function SignupPage() {
           />
 
           <Input
+            label="전화번호"
+            type="tel"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="+821012345678"
+            error={errors.phoneNumber}
+            helperText="국제 전화번호 형식 (+82로 시작)"
+            required
+          />
+
+          <Input
             label="비밀번호"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="예: Gympt1234"
+            placeholder="예: Gympt1234!"
             error={errors.password}
-            helperText="대문자, 소문자, 숫자 각 1개 이상, 8자 이상"
+            helperText="대문자, 소문자, 숫자, 특수문자 각 1개 이상, 8자 이상"
             required
           />
 
