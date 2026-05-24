@@ -161,46 +161,46 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<ApiResponse<any>> {
-    const response = await this.client.get('/api/users/me');
+    const response = await this.client.get('/api/v1/users/me');
     return response.data;
   }
 
   // Body Profile API
   async getBodyProfile(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/body-profile/${userId}`);
+    const response = await this.client.get(`/api/v1/body-profiles/${userId}`);
     return response.data;
   }
 
   async updateBodyProfile(userId: string, data: any): Promise<ApiResponse<any>> {
-    const response = await this.client.put(`/api/body-profile/${userId}`, data);
+    const response = await this.client.put(`/api/v1/body-profiles/${userId}`, data);
     return response.data;
   }
 
   // Workout Goal API
   async getWorkoutGoal(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/workout-goals/${userId}`);
+    const response = await this.client.get(`/api/v1/goals/${userId}`);
     return response.data;
   }
 
   async updateWorkoutGoal(userId: string, data: any): Promise<ApiResponse<any>> {
-    const response = await this.client.put(`/api/workout-goals/${userId}`, data);
+    const response = await this.client.put(`/api/v1/goals/${userId}`, data);
     return response.data;
   }
 
   // Workout Routine API
   async getTodayRoutine(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/routines/today/${userId}`);
+    const response = await this.client.get(`/api/v1/routines/today/${userId}`);
     return response.data;
   }
 
   async getRoutines(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/routines/${userId}`);
+    const response = await this.client.get(`/api/v1/routines/${userId}`);
     return response.data;
   }
 
   // Workout Session API
   async startSession(userId: string, routineId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.post('/api/sessions/start', {
+    const response = await this.client.post('/api/v1/sessions/start', {
       userId,
       routineId,
     });
@@ -208,23 +208,23 @@ class ApiClient {
   }
 
   async completeSession(sessionId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.post(`/api/sessions/${sessionId}/complete`);
+    const response = await this.client.post(`/api/v1/sessions/${sessionId}/complete`);
     return response.data;
   }
 
   async getSession(sessionId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/sessions/${sessionId}`);
+    const response = await this.client.get(`/api/v1/sessions/${sessionId}`);
     return response.data;
   }
 
   // Workout Report API
   async getReport(sessionId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/reports/${sessionId}`);
+    const response = await this.client.get(`/api/v1/reports/${sessionId}`);
     return response.data;
   }
 
   async getReports(userId: string, page = 1, limit = 10): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/reports/user/${userId}`, {
+    const response = await this.client.get(`/api/v1/reports/user/${userId}`, {
       params: { page, limit },
     });
     return response.data;
@@ -232,18 +232,18 @@ class ApiClient {
 
   // Dashboard API
   async getStats(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/stats/${userId}`);
+    const response = await this.client.get(`/api/v1/stats/${userId}`);
     return response.data;
   }
 
   async getWeeklyProgress(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/stats/${userId}/weekly`);
+    const response = await this.client.get(`/api/v1/stats/${userId}/weekly`);
     return response.data;
   }
 
   // KVS Credentials API
   async getKVSCredentials(sessionId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/kvs/credentials/${sessionId}`);
+    const response = await this.client.get(`/api/v1/kvs/credentials/${sessionId}`);
     return response.data;
   }
 }
