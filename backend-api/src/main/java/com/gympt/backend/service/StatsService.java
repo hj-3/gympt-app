@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -88,7 +88,7 @@ public class StatsService {
     private StatsResponse.RecentSessionDto mapToRecentSession(WorkoutSession session) {
         return StatsResponse.RecentSessionDto.builder()
             .id(session.getId().toString())
-            .exerciseName(session.getWorkoutPlan() != null ? session.getWorkoutPlan().getName() : "Workout")
+            .exerciseName(session.getWorkoutPlan() != null ? session.getWorkoutPlan().getPlanName() : "Workout")
             .duration(session.getTotalDuration() != null ? session.getTotalDuration() / 60 : 0)
             .postureScore(BigDecimal.ZERO) // TODO: Add posture score field
             .completedAt(session.getEndTime() != null ? session.getEndTime().toString() : "")
