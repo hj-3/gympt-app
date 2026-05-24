@@ -63,13 +63,18 @@ class ApiClient {
   }
 
   // Workout Goal API
-  async getWorkoutGoal(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/v1/goals/${userId}`);
+  async createGoal(data: any): Promise<ApiResponse<any>> {
+    const response = await this.client.post('/api/v1/goals', data);
     return response.data;
   }
 
-  async updateWorkoutGoal(userId: string, data: any): Promise<ApiResponse<any>> {
-    const response = await this.client.put(`/api/v1/goals/${userId}`, data);
+  async getLatestGoal(): Promise<ApiResponse<any>> {
+    const response = await this.client.get('/api/v1/goals/latest');
+    return response.data;
+  }
+
+  async getGoalHistory(): Promise<ApiResponse<any>> {
+    const response = await this.client.get('/api/v1/goals/history');
     return response.data;
   }
 

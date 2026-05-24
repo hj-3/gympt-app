@@ -42,6 +42,16 @@ public class WorkoutGoalController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/latest")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Get latest active workout goal for the user")
+    public ResponseEntity<WorkoutGoalResponse> getLatestGoal(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        log.info("GET /api/v1/goals/latest - userId: {}", userId);
+        WorkoutGoalResponse response = workoutGoalService.getLatestGoal(userId);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Get all workout goals for the user")

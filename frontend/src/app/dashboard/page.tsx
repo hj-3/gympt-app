@@ -86,6 +86,9 @@ export default function DashboardPage() {
           <Link href="/profile">
             <Button variant="secondary">신체 정보</Button>
           </Link>
+          <Link href="/goals">
+            <Button variant="secondary">운동 목표</Button>
+          </Link>
           <Link href="/workout">
             <Button>운동 시작</Button>
           </Link>
