@@ -13,6 +13,11 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
+// Required for static export with dynamic routes
+export function generateStaticParams() {
+  return [];
+}
+
 export default function ReportPage() {
   const router = useRouter();
   const params = useParams();
