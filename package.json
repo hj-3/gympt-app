@@ -4,7 +4,6 @@
   "description": "GYMPT Application Services",
   "private": true,
   "workspaces": [
-    "frontend",
     "agent-service",
     "posture-analysis-service",
     "remediation-worker"

@@ -32,13 +32,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
+        working-directory: frontend
         run: npm ci
 
       - name: Run linter
-        run: npm run lint -w frontend || true
+        working-directory: frontend
+        run: npm run lint || true
 
       - name: Run type check
-        run: npm run typecheck -w frontend
+        working-directory: frontend
+        run: npm run typecheck
 
       - name: Determine environment
         id: env
@@ -56,11 +59,12 @@ jobs:
           fi
 
       - name: Build frontend
+        working-directory: frontend
         run: |
           if [ "${{ steps.env.outputs.environment }}" == "prod" ]; then
-            npm run build:prod -w frontend
+            npm run build:prod
           else
-            npm run build:dev -w frontend
+            npm run build:dev
           fi
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.env.outputs.api_url }}
