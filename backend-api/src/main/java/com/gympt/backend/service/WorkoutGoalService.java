@@ -91,4 +91,17 @@ public class WorkoutGoalService {
         workoutGoalRepository.delete(goal);
         log.info("Workout goal deleted: {}", goalId);
     }
+
+    @Transactional(readOnly = true)
+    public WorkoutGoalResponse getLatestGoal(UUID userId) {
+        log.info("Getting latest workout goal for user: {}", userId);
+
+        WorkoutGoal goal = workoutGoalRepository.findFirstByUserIdOrderByCreatedAtDesc(userId);
+
+        if (goal == null) {
+            throw new ResourceNotFoundException("WorkoutGoal", "userId", userId);
+        }
+
+        return WorkoutGoalResponse.from(goal);
+    }
 }

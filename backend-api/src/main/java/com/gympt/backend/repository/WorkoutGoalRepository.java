@@ -13,4 +13,6 @@ public interface WorkoutGoalRepository extends JpaRepository<WorkoutGoal, UUID> 
     List<WorkoutGoal> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     List<WorkoutGoal> findByUserIdAndStatus(UUID userId, WorkoutGoal.GoalStatus status);
+
+    WorkoutGoal findFirstByUserIdOrderByCreatedAtDesc(UUID userId);
 }
