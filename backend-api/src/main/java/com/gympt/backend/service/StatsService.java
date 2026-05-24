@@ -34,24 +34,16 @@ public class StatsService {
             WorkoutSession.SessionStatus.COMPLETED
         );
 
-        // Calculate total minutes
+        // Calculate total minutes (totalDuration is in seconds)
         int totalMinutes = sessions.stream()
-            .mapToInt(s -> s.getDurationMinutes() != null ? s.getDurationMinutes() : 0)
+            .mapToInt(s -> s.getTotalDuration() != null ? s.getTotalDuration() / 60 : 0)
             .sum();
 
-        // Calculate average posture score
-        BigDecimal avgPostureScore = sessions.stream()
-            .filter(s -> s.getAvgPostureScore() != null)
-            .map(WorkoutSession::getAvgPostureScore)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
-            .divide(
-                BigDecimal.valueOf(sessions.isEmpty() ? 1 : sessions.size()),
-                2,
-                RoundingMode.HALF_UP
-            );
+        // Calculate average posture score (not yet implemented in entity)
+        BigDecimal avgPostureScore = BigDecimal.ZERO;
 
         // Get weekly workouts (last 7 days)
-        LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
+        Instant weekAgo = Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS);
         int weeklyWorkouts = (int) sessions.stream()
             .filter(s -> s.getStartTime() != null && s.getStartTime().isAfter(weekAgo))
             .count();
@@ -79,7 +71,7 @@ public class StatsService {
 
     @Transactional(readOnly = true)
     public StatsResponse getWeeklyProgress(UUID userId) {
-        LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
+        Instant weekAgo = Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS);
         List<WorkoutSession> sessions = workoutSessionRepository.findByUserIdAndStartTimeAfter(
             userId,
             weekAgo
@@ -96,9 +88,9 @@ public class StatsService {
     private StatsResponse.RecentSessionDto mapToRecentSession(WorkoutSession session) {
         return StatsResponse.RecentSessionDto.builder()
             .id(session.getId().toString())
-            .exerciseName(session.getExerciseType() != null ? session.getExerciseType().name() : "Unknown")
-            .duration(session.getDurationMinutes())
-            .postureScore(session.getAvgPostureScore())
+            .exerciseName(session.getWorkoutPlan() != null ? session.getWorkoutPlan().getName() : "Workout")
+            .duration(session.getTotalDuration() != null ? session.getTotalDuration() / 60 : 0)
+            .postureScore(BigDecimal.ZERO) // TODO: Add posture score field
             .completedAt(session.getEndTime() != null ? session.getEndTime().toString() : "")
             .build();
     }
@@ -107,7 +99,9 @@ public class StatsService {
         LocalDate today = LocalDate.now();
         Map<LocalDate, List<WorkoutSession>> sessionsByDate = sessions.stream()
             .filter(s -> s.getStartTime() != null)
-            .collect(Collectors.groupingBy(s -> s.getStartTime().toLocalDate()));
+            .collect(Collectors.groupingBy(s ->
+                LocalDate.ofInstant(s.getStartTime(), java.time.ZoneId.systemDefault())
+            ));
 
         List<StatsResponse.WeeklyDataDto> weeklyData = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
@@ -115,7 +109,7 @@ public class StatsService {
             List<WorkoutSession> daySessions = sessionsByDate.getOrDefault(date, Collections.emptyList());
 
             int minutes = daySessions.stream()
-                .mapToInt(s -> s.getDurationMinutes() != null ? s.getDurationMinutes() : 0)
+                .mapToInt(s -> s.getTotalDuration() != null ? s.getTotalDuration() / 60 : 0)
                 .sum();
 
             weeklyData.add(StatsResponse.WeeklyDataDto.builder()
