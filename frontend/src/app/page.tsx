@@ -84,6 +84,21 @@ export default function Home() {
             </Link>
           </div>
         )}
+
+        {/* Footer Info */}
+        <div className="mt-16 pt-8 border-t border-gray-200 text-center space-y-2">
+          <p className="text-xs text-gray-400">
+            GYMPT v0.2.0
+          </p>
+          <p className="text-xs text-gray-400">
+            © 2026 GYMPT. All rights reserved.
+          </p>
+          <div className="flex justify-center gap-4 text-xs text-gray-500">
+            <a href="/terms" className="hover:text-blue-600">이용약관</a>
+            <span>•</span>
+            <a href="/privacy" className="hover:text-blue-600">개인정보처리방침</a>
+          </div>
+        </div>
       </div>
     </div>
   );

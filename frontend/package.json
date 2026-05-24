@@ -18,6 +18,7 @@
     "@aws-amplify/ui-react": "^6.15.4",
     "@aws-sdk/client-kinesis-video": "^3.1053.0",
     "@aws-sdk/client-kinesis-video-signaling": "^3.1053.0",
+    "@heroicons/react": "^2.2.0",
     "@stomp/stompjs": "^7.0.0",
     "amazon-kinesis-video-streams-webrtc": "2.8.0",
     "aws-amplify": "^6.17.0",
