@@ -2,15 +2,14 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { BottomNav } from '@/components/layout/BottomNav';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'GYMPT - AI 기반 개인화 피트니스',
-  description: 'AI와 컴퓨터 비전을 활용한 실시간 운동 자세 분석',
+  title: 'GYMPT - 스마트 피트니스 트레이너',
+  description: '실시간 AI 자세 분석으로 더 안전하고 효과적인 운동',
 };
 
 export default function RootLayout({
@@ -22,12 +21,11 @@ export default function RootLayout({
     <html lang="ko">
       <body className={inter.className}>
         <AuthProvider>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
+          <div className="flex flex-col min-h-screen bg-gray-50">
+            <main className="flex-1 pb-20">{children}</main>
+            <BottomNav />
           </div>
-          <Toaster position="top-right" />
+          <Toaster position="top-center" />
         </AuthProvider>
       </body>
     </html>

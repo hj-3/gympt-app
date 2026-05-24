@@ -3,153 +3,158 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/store';
-import { apiClient } from '@/lib/api-client';
-import { StatsCard } from '@/components/dashboard/StatsCard';
-import { RecentSessions } from '@/components/dashboard/RecentSessions';
-import { WeeklyChart } from '@/components/dashboard/WeeklyChart';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import toast from 'react-hot-toast';
+import {
+  FireIcon,
+  CalendarIcon,
+  TrophyIcon,
+  ChartBarIcon,
+  PlayIcon
+} from '@heroicons/react/24/outline';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface DashboardStats {
-  totalMinutes?: number;
-  completedSessions?: number;
-  avgPostureScore?: number;
-  weeklyWorkouts?: number;
-  recentSessions?: any[];
-  weeklyData?: any[];
-  todayRoutine?: any;
+  totalWorkouts: number;
+  totalMinutes: number;
+  avgScore: number;
+  streak: number;
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-
-    const loadData = async () => {
-      if (!user) return;
-
-      try {
-        const statsRes = await apiClient.getStats(user.userId);
-        setStats(statsRes.data);
-      } catch (error: any) {
-        console.error('Failed to load dashboard data:', error);
-        // Set empty stats instead of showing error
-        setStats({
-          totalMinutes: 0,
-          completedSessions: 0,
-          avgPostureScore: 0,
-          weeklyWorkouts: 0,
-          recentSessions: [],
-          weeklyData: [],
-        });
-        // toast.error('데이터를 불러오는데 실패했습니다');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user, isAuthenticated, router]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalWorkouts: 0,
+    totalMinutes: 0,
+    avgScore: 0,
+    streak: 0
+  });
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">
-            안녕하세요, {user.name}님!
-          </h1>
-          <p className="text-gray-600">오늘도 건강한 하루 되세요</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/profile">
-            <Button variant="secondary">신체 정보</Button>
-          </Link>
-          <Link href="/goals">
-            <Button variant="secondary">운동 목표</Button>
-          </Link>
-          <Link href="/workout">
-            <Button>운동 시작</Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="총 운동 시간"
-          value={stats?.totalMinutes || 0}
-          unit="분"
-          icon="⏱️"
-        />
-        <StatsCard
-          title="완료한 세션"
-          value={stats?.completedSessions || 0}
-          unit="회"
-          icon="✅"
-        />
-        <StatsCard
-          title="평균 자세 점수"
-          value={stats?.avgPostureScore ? stats.avgPostureScore.toFixed(1) : '0.0'}
-          unit="/10"
-          icon="🎯"
-        />
-        <StatsCard
-          title="이번 주 운동"
-          value={stats?.weeklyWorkouts || 0}
-          unit="회"
-          icon="📅"
-        />
-      </div>
-
-      {/* Today's Routine */}
-      {stats?.todayRoutine && (
-        <Card className="mb-8">
-          <h2 className="text-xl font-bold mb-4">오늘의 추천 운동</h2>
-          <div>
-            <h3 className="text-lg font-semibold mb-2">{stats.todayRoutine.name}</h3>
-            <p className="text-gray-600 mb-4">{stats.todayRoutine.description}</p>
-            <div className="flex items-center gap-4 mb-4">
-              <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                {stats.todayRoutine.difficulty}
-              </span>
-              <span className="text-sm text-gray-600">
-                {stats.todayRoutine.duration}분
-              </span>
-            </div>
-            <Link href="/session">
-              <Button>운동 시작하기</Button>
-            </Link>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              대시보드
+            </h1>
+            <p className="text-sm text-gray-600">
+              나의 운동 기록을 확인하세요
+            </p>
           </div>
-        </Card>
-      )}
 
-      {/* Charts and Recent Sessions */}
-      <div className="grid md:grid-cols-2 gap-8">
-        <WeeklyChart data={stats?.weeklyData || []} />
-        <RecentSessions sessions={stats?.recentSessions || []} />
+          {/* Quick Action */}
+          <Link href="/session">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-6 mb-6 shadow-lg">
+              <div className="flex items-center justify-between text-white">
+                <div>
+                  <p className="text-sm font-medium mb-1 opacity-90">지금 바로</p>
+                  <h2 className="text-2xl font-bold">운동 시작하기</h2>
+                </div>
+                <div className="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <PlayIcon className="w-7 h-7" />
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <StatCard
+              icon={<FireIcon className="w-6 h-6 text-orange-500" />}
+              label="연속 운동"
+              value={`${stats.streak}일`}
+              bgColor="bg-orange-50"
+            />
+            <StatCard
+              icon={<TrophyIcon className="w-6 h-6 text-yellow-500" />}
+              label="총 운동"
+              value={`${stats.totalWorkouts}회`}
+              bgColor="bg-yellow-50"
+            />
+            <StatCard
+              icon={<CalendarIcon className="w-6 h-6 text-green-500" />}
+              label="운동 시간"
+              value={`${stats.totalMinutes}분`}
+              bgColor="bg-green-50"
+            />
+            <StatCard
+              icon={<ChartBarIcon className="w-6 h-6 text-blue-500" />}
+              label="평균 점수"
+              value={`${stats.avgScore}점`}
+              bgColor="bg-blue-50"
+            />
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                최근 운동
+              </h3>
+              <Link href="/report">
+                <button className="text-sm text-blue-600 font-medium">
+                  전체보기
+                </button>
+              </Link>
+            </div>
+            <div className="space-y-3">
+              <EmptyState message="아직 운동 기록이 없어요" />
+            </div>
+          </div>
+
+          {/* Weekly Goal */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              주간 목표
+            </h3>
+            <div className="mb-3">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-600">이번 주 운동</span>
+                <span className="font-semibold text-gray-900">0 / 4회</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-blue-600 h-3 rounded-full transition-all"
+                  style={{ width: '0%' }}
+                />
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              목표 달성까지 4회 남았어요!
+            </p>
+          </div>
+        </div>
       </div>
+    </ProtectedRoute>
+  );
+}
+
+function StatCard({ icon, label, value, bgColor }: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  bgColor: string;
+}) {
+  return (
+    <div className="bg-white rounded-3xl p-5 shadow-sm">
+      <div className={`inline-flex p-2 rounded-xl ${bgColor} mb-3`}>
+        {icon}
+      </div>
+      <p className="text-sm text-gray-600 mb-1">{label}</p>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="text-center py-8">
+      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <ChartBarIcon className="w-8 h-8 text-gray-400" />
+      </div>
+      <p className="text-sm text-gray-500">{message}</p>
     </div>
   );
 }
