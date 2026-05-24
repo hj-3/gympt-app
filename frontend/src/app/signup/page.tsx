@@ -97,8 +97,11 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Use username format for confirmation (email prefix)
+      const username = email.split('@')[0].toLowerCase();
+
       await confirmSignUp({
-        username: email,
+        username,
         confirmationCode,
       });
 
