@@ -1,138 +1,209 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { WebSocketClient } from '@/lib/websocket-client';
-import { KVSWebRTCClient } from '@/lib/kvs-client';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
-import { getAuthToken } from '@/lib/auth';
-import { useWorkoutStore } from '@/lib/store';
-import { RealtimeFeedback } from '@/types';
+import {
+  VideoCameraIcon,
+  PlayIcon,
+  StopIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-function SessionContent() {
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get('sessionId');
+type SessionState = 'idle' | 'requesting_permission' | 'ready' | 'active' | 'completed' | 'error';
+
+export default function SessionPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [wsClient, setWsClient] = useState<WebSocketClient | null>(null);
-  const [kvsClient, setKvsClient] = useState<KVSWebRTCClient | null>(null);
-  const { currentSession, realtimeFeedback, addFeedback } = useWorkoutStore();
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [sessionState, setSessionState] = useState<SessionState>('idle');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number>(0);
 
   useEffect(() => {
-    if (!sessionId) return;
-
-    let ws: WebSocketClient;
-    let kvs: KVSWebRTCClient;
-
-    const init = async () => {
-      try {
-        // Get KVS credentials
-        const credsRes = await apiClient.getKVSCredentials(sessionId);
-        const { accessKeyId, secretAccessKey, sessionToken, channelName } = credsRes.data;
-
-        // Initialize KVS WebRTC
-        kvs = new KVSWebRTCClient({
-          region: process.env.NEXT_PUBLIC_KVS_REGION!,
-          channelName,
-          credentials: { accessKeyId, secretAccessKey, sessionToken },
-        });
-
-        await kvs.connect();
-        setKvsClient(kvs);
-
-        // Show local stream
-        const stream = kvs.getLocalStream();
-        if (videoRef.current && stream) {
-          videoRef.current.srcObject = stream;
-        }
-
-        setIsStreaming(true);
-
-        // Initialize WebSocket for feedback
-        const token = await getAuthToken();
-        if (token) {
-          ws = new WebSocketClient(token);
-          await ws.connect(sessionId);
-          setWsClient(ws);
-
-          // Listen for posture feedback
-          ws.on('posture_feedback', (feedback: RealtimeFeedback) => {
-            addFeedback(feedback);
-          });
-        }
-      } catch (error) {
-        console.error('Failed to initialize session:', error);
-        toast.error('Failed to start camera');
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
     };
+  }, [stream]);
 
-    init();
+  const requestCameraPermission = async () => {
+    setSessionState('requesting_permission');
+    setError(null);
 
-    return () => {
-      kvs?.disconnect();
-      ws?.disconnect();
-    };
-  }, [sessionId, addFeedback]);
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+        audio: false,
+      });
+
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+
+      setSessionState('ready');
+      toast.success('카메라 연결 완료');
+    } catch (err: any) {
+      console.error('Camera permission error:', err);
+      let errorMessage = '카메라 권한을 허용해주세요';
+
+      if (err.name === 'NotAllowedError') {
+        errorMessage = '카메라 접근이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = '카메라를 찾을 수 없습니다';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = '카메라가 다른 앱에서 사용 중입니다';
+      }
+
+      setError(errorMessage);
+      setSessionState('error');
+      toast.error(errorMessage);
+    }
+  };
+
+  const startWorkoutSession = async () => {
+    if (!user?.userId) {
+      toast.error('사용자 정보를 찾을 수 없습니다');
+      return;
+    }
+
+    try {
+      const routineResponse = await apiClient.getTodayRoutine(user.userId);
+      const routine = routineResponse.data;
+
+      if (!routine) {
+        toast.error('오늘의 운동 루틴이 없습니다');
+        return;
+      }
+
+      const sessionResponse = await apiClient.startSession(user.userId, routine.routineId);
+      const session = sessionResponse.data;
+
+      setSessionId(session.sessionId);
+      setSessionState('active');
+      toast.success('운동을 시작합니다!');
+
+    } catch (error: any) {
+      console.error('Failed to start session:', error);
+      if (error.response?.status === 404) {
+        toast.error('운동 루틴이 설정되지 않았습니다');
+      } else {
+        toast.error('세션 시작에 실패했습니다');
+      }
+    }
+  };
+
+  const stopWorkoutSession = async () => {
+    if (!sessionId) return;
+
+    try {
+      await apiClient.completeSession(sessionId);
+      setSessionState('completed');
+      toast.success('운동이 완료되었습니다!');
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+
+      setTimeout(() => {
+        router.push(`/report/${sessionId}`);
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to complete session:', error);
+      toast.error('세션 종료에 실패했습니다');
+    }
+  };
+
+  const startCountdown = () => {
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          startWorkoutSession();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Video Feed */}
-          <div className="lg:col-span-2">
-            <div className="bg-black rounded-lg overflow-hidden aspect-video">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="mt-4 flex justify-center gap-4">
-              <button
-                disabled={!isStreaming}
-                className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                End Workout
-              </button>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-900">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative aspect-video bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {sessionState === 'active' && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-white text-sm font-medium">운동 중</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => router.back()}
+                    className="text-white px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors pointer-events-auto"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+              {countdown > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-white text-9xl font-bold animate-pulse">
+                    {countdown}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Feedback Panel */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-bold mb-4">Real-time Feedback</h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {realtimeFeedback.map((feedback, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3 rounded-lg ${
-                    feedback.feedback.type === 'good'
-                      ? 'bg-green-900'
-                      : feedback.feedback.type === 'warning'
-                      ? 'bg-yellow-900'
-                      : 'bg-red-900'
-                  }`}
-                >
-                  <p className="text-sm font-medium">{feedback.feedback.message}</p>
-                  <p className="text-xs text-gray-300 mt-1">
-                    Score: {feedback.postureScore.toFixed(1)}
-                  </p>
-                </div>
-              ))}
+          <div className="bg-gray-800 p-6">
+            <div className="flex items-center justify-center gap-4">
+              {sessionState === 'idle' && (
+                <button onClick={requestCameraPermission} className="px-8 py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors flex items-center gap-3">
+                  <VideoCameraIcon className="w-6 h-6" />
+                  <span className="font-semibold">카메라 시작</span>
+                </button>
+              )}
+              {sessionState === 'ready' && (
+                <button onClick={startCountdown} className="px-8 py-4 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-colors flex items-center gap-3">
+                  <PlayIcon className="w-6 h-6" />
+                  <span className="font-semibold">운동 시작</span>
+                </button>
+              )}
+              {sessionState === 'active' && (
+                <button onClick={stopWorkoutSession} className="px-8 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-colors flex items-center gap-3">
+                  <StopIcon className="w-6 h-6" />
+                  <span className="font-semibold">운동 종료</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-export default function SessionPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading session...</div>}>
-      <SessionContent />
-    </Suspense>
+    </ProtectedRoute>
   );
 }

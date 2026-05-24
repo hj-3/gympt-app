@@ -54,6 +54,20 @@ public class WorkoutSessionController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{sessionId}/complete")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Complete a workout session (alias for end)")
+    public ResponseEntity<WorkoutSessionResponse> completeSession(
+            @PathVariable UUID sessionId,
+            @RequestBody(required = false) EndWorkoutSessionRequest request
+    ) {
+        log.info("POST /api/v1/sessions/{}/complete - sessionId: {}", sessionId, sessionId);
+        // Use default request if none provided
+        EndWorkoutSessionRequest endRequest = request != null ? request : new EndWorkoutSessionRequest();
+        WorkoutSessionResponse response = workoutSessionService.endSession(sessionId, endRequest);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Get all workout sessions for the user")

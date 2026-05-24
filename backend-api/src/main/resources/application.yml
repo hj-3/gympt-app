@@ -137,6 +137,10 @@ app:
     region: ${AWS_REGION:ap-northeast-2}
     account-id: ${AWS_ACCOUNT_ID:}
 
+    kvs:
+      stream-name: ${KVS_STREAM_NAME:gympt-prod-live-sessions}
+      signaling-channel-name: ${KVS_SIGNALING_CHANNEL_NAME:prod-live-sessions-signaling}
+
     s3:
       bucket-name: ${S3_BUCKET_NAME:gympt-media-local}
       media-bucket: ${S3_MEDIA_BUCKET:gympt-media-local}
