@@ -3,7 +3,6 @@ package com.gympt.backend.service;
 import com.gympt.backend.dto.UserProfileRequest;
 import com.gympt.backend.dto.UserProfileResponse;
 import com.gympt.backend.exception.ResourceNotFoundException;
-import com.gympt.backend.repository.RefreshTokenRepository;
 import com.gympt.backend.user.User;
 import com.gympt.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,16 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
-
-    public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
-        this.userRepository = userRepository;
-        this.refreshTokenRepository = refreshTokenRepository;
-    }
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {
@@ -72,8 +66,8 @@ public class UserService {
         user.setStatus(User.UserStatus.DELETED);
         userRepository.save(user);
 
-        // Revoke all refresh tokens
-        refreshTokenRepository.deleteByUserId(userId);
+        // Note: Cognito tokens are revoked through Cognito User Pool
+        // No need to manage refresh tokens in DB anymore
 
         log.info("Account deleted for user: {}", userId);
     }
