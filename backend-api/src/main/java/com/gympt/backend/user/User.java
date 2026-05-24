@@ -9,7 +9,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "users",
     indexes = {
-        @Index(name = "idx_user_email", columnList = "email", unique = true)
+        @Index(name = "idx_user_cognito_sub", columnList = "cognito_sub", unique = true),
+        @Index(name = "idx_user_email", columnList = "email")
     }
 )
 @Getter
@@ -23,11 +24,11 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String email;
+    @Column(name = "cognito_sub", nullable = false, unique = true, length = 255)
+    private String cognitoSub;
 
     @Column(nullable = false, length = 255)
-    private String password;
+    private String email;
 
     @Column(nullable = false, length = 100)
     private String name;
