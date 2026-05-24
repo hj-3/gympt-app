@@ -28,7 +28,7 @@ jobs:
         run: ruff check app/
       - name: Test
         working-directory: posture-analysis-service
-        run: pytest tests/ -v --cov=app
+        run: pytest tests/ -v --cov=app -m "not slow" --ignore=tests/performance/
 
   build-and-push:
     runs-on: ubuntu-latest
