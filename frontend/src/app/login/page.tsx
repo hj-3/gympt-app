@@ -26,7 +26,16 @@ export default function LoginPage() {
       toast.success('로그인에 성공했습니다!');
       router.push('/dashboard');
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
+      let errorMessage = '로그인에 실패했습니다';
+
+      if (err.message?.includes('UserNotFoundException') || err.message?.includes('NotAuthorizedException')) {
+        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다';
+      } else if (err.message?.includes('UserNotConfirmedException')) {
+        errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요';
+      } else {
+        errorMessage = err.message || errorMessage;
+      }
+
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

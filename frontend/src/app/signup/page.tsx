@@ -4,18 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
+import { confirmSignUp } from 'aws-amplify/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import toast from 'react-hot-toast';
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup } = useAuthStore();
+  const { signup, login } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState('');
   const [errors, setErrors] = useState({
     name: '',
     email: '',
@@ -64,20 +67,55 @@ export default function SignupPage() {
 
     try {
       await signup(email, password, name);
-      toast.success('계정이 생성되었습니다!');
-      router.push('/dashboard');
+      toast.success('인증 코드가 이메일로 전송되었습니다!');
+      setNeedsConfirmation(true);
     } catch (error: any) {
       let errorMessage = '회원가입에 실패했습니다';
 
-      if (error.response?.status === 400) {
-        const message = error.response?.data?.error?.message || error.response?.data?.message;
-        if (message?.includes('already exists') || message?.includes('이미 존재')) {
-          errorMessage = '이미 가입된 이메일입니다. 로그인해주세요.';
-        } else if (message?.includes('Password')) {
-          errorMessage = '비밀번호는 대문자, 소문자, 숫자를 각각 포함해야 합니다';
-        } else {
-          errorMessage = message || errorMessage;
-        }
+      if (error.message?.includes('UsernameExistsException') || error.message?.includes('already exists')) {
+        errorMessage = '이미 가입된 이메일입니다. 로그인해주세요.';
+      } else if (error.message?.includes('InvalidPasswordException')) {
+        errorMessage = '비밀번호는 대문자, 소문자, 숫자, 특수문자를 각각 포함해야 합니다';
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmation = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!confirmationCode || confirmationCode.length !== 6) {
+      toast.error('6자리 인증 코드를 입력해주세요');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await confirmSignUp({
+        username: email,
+        confirmationCode,
+      });
+
+      toast.success('이메일 인증 완료! 로그인 중...');
+
+      // Auto login after confirmation
+      await login(email, password);
+      router.push('/dashboard');
+    } catch (error: any) {
+      let errorMessage = '인증에 실패했습니다';
+
+      if (error.message?.includes('CodeMismatchException')) {
+        errorMessage = '인증 코드가 일치하지 않습니다';
+      } else if (error.message?.includes('ExpiredCodeException')) {
+        errorMessage = '인증 코드가 만료되었습니다. 다시 회원가입해주세요.';
+      } else {
+        errorMessage = error.message || errorMessage;
       }
 
       toast.error(errorMessage);
@@ -92,14 +130,43 @@ export default function SignupPage() {
         <div className="text-center">
           <h1 className="text-4xl font-bold text-blue-600 mb-2">GYMPT</h1>
           <h2 className="text-2xl font-semibold text-gray-700">
-            회원가입
+            {needsConfirmation ? '이메일 인증' : '회원가입'}
           </h2>
           <p className="mt-2 text-gray-600">
-            GYMPT와 함께 건강한 습관을 시작하세요
+            {needsConfirmation
+              ? '이메일로 전송된 6자리 인증 코드를 입력하세요'
+              : 'GYMPT와 함께 건강한 습관을 시작하세요'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {needsConfirmation ? (
+          <form onSubmit={handleConfirmation} className="space-y-6">
+            <Input
+              label="인증 코드"
+              type="text"
+              value={confirmationCode}
+              onChange={(e) => setConfirmationCode(e.target.value)}
+              placeholder="123456"
+              maxLength={6}
+              required
+            />
+
+            <Button type="submit" fullWidth disabled={loading}>
+              {loading ? '인증 중...' : '인증 완료'}
+            </Button>
+
+            <div className="text-center text-sm">
+              <button
+                type="button"
+                onClick={() => setNeedsConfirmation(false)}
+                className="text-blue-600 hover:underline"
+              >
+                다시 회원가입하기
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
           <Input
             label="이름"
             type="text"
@@ -149,13 +216,16 @@ export default function SignupPage() {
             {loading ? '계정 생성 중...' : '회원가입'}
           </Button>
         </form>
+        )}
 
-        <div className="text-center text-sm">
-          <span className="text-gray-600">이미 계정이 있으신가요? </span>
-          <Link href="/login" className="text-blue-600 hover:underline font-semibold">
-            로그인
-          </Link>
-        </div>
+        {!needsConfirmation && (
+          <div className="text-center text-sm">
+            <span className="text-gray-600">이미 계정이 있으신가요? </span>
+            <Link href="/login" className="text-blue-600 hover:underline font-semibold">
+              로그인
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
