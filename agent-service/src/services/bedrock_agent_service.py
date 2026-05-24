@@ -91,56 +91,179 @@ class BedrockAgentService:
 
     async def generate_workout_plan(
         self,
+        user_id: str,
+        session_id: str,
         user_profile: Dict[str, Any],
         goals: list[str],
         constraints: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Generate personalized workout plan
+        Generate personalized workout plan using Bedrock Agent with Knowledge Base
 
         Args:
+            user_id: User identifier
+            session_id: Session identifier
             user_profile: User profile information (age, fitness level, etc.)
             goals: List of fitness goals
             constraints: Any constraints (injuries, time availability, etc.)
 
         Returns:
-            Personalized workout plan
+            Personalized workout plan from agent with RAG-enhanced knowledge
         """
-        # Construct prompt
+        # Construct prompt for agent
         prompt = f"""
-        Generate a personalized workout plan for a user with the following profile:
+        Generate a personalized workout plan for me.
 
-        Profile: {json.dumps(user_profile)}
-        Goals: {', '.join(goals)}
-        Constraints: {json.dumps(constraints) if constraints else 'None'}
+        My Profile:
+        - Age: {user_profile.get('age', 'N/A')}
+        - Fitness Level: {user_profile.get('fitnessLevel', 'BEGINNER')}
+        - Height: {user_profile.get('heightCm', 'N/A')} cm
+        - Weight: {user_profile.get('weightKg', 'N/A')} kg
+        - Body Fat: {user_profile.get('bodyFatPercentage', 'N/A')}%
 
-        Please provide:
-        1. Weekly workout schedule
-        2. Specific exercises for each day
-        3. Sets, reps, and rest periods
-        4. Progression strategy
-        5. Safety considerations
+        My Goals: {', '.join(goals)}
+        {f"Constraints: {json.dumps(constraints)}" if constraints else ""}
+
+        Please create a weekly workout plan with specific exercises, sets, reps, and safety tips.
         """
 
-        # TODO: Invoke agent with workout plan prompt
-        pass
+        context = {
+            "user_profile": json.dumps(user_profile),
+            "goals": ','.join(goals),
+        }
+
+        return await self.invoke_agent(
+            user_id=user_id,
+            session_id=session_id,
+            input_text=prompt,
+            context=context,
+        )
 
     async def analyze_posture_feedback(
         self,
+        user_id: str,
+        session_id: str,
         exercise: str,
         posture_data: Dict[str, Any],
+        rep_count: int,
         previous_feedback: Optional[list] = None,
     ) -> Dict[str, Any]:
         """
-        Analyze posture data and provide feedback
+        Analyze posture data and provide real-time feedback using Bedrock Agent
 
         Args:
+            user_id: User identifier
+            session_id: Session identifier
             exercise: Exercise name
-            posture_data: Posture analysis results
+            posture_data: Posture analysis results (angles, positions)
+            rep_count: Current rep count
             previous_feedback: Previous feedback for context
 
         Returns:
-            AI-generated feedback and corrections
+            AI-generated feedback and corrections from agent
         """
-        # TODO: Implement posture feedback analysis
-        pass
+        prev_context = ""
+        if previous_feedback:
+            prev_context = f"\nPrevious feedback: {json.dumps(previous_feedback[-3:])}"
+
+        prompt = f"""
+        I'm doing {exercise} exercise. This is rep #{rep_count}.
+
+        My current form metrics:
+        {json.dumps(posture_data, indent=2)}
+        {prev_context}
+
+        Please analyze my form and provide:
+        1. Overall form score (0-100)
+        2. Specific corrections if needed
+        3. Encouragement
+        Keep it concise for real-time feedback.
+        """
+
+        context = {
+            "exercise": exercise,
+            "rep_count": str(rep_count),
+        }
+
+        return await self.invoke_agent(
+            user_id=user_id,
+            session_id=session_id,
+            input_text=prompt,
+            context=context,
+        )
+
+    async def generate_workout_report(
+        self,
+        user_id: str,
+        session_id: str,
+        workout_summary: Dict[str, Any],
+        historical_data: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate comprehensive workout report with AI insights
+
+        Args:
+            user_id: User identifier
+            session_id: Session identifier for this report
+            workout_summary: Session statistics
+            historical_data: Previous sessions for trend analysis
+
+        Returns:
+            AI-generated report with insights and recommendations
+        """
+        history_text = ""
+        if historical_data:
+            history_text = f"\n\nMy workout history (last {len(historical_data)} sessions):\n"
+            for i, session in enumerate(historical_data[-5:], 1):
+                history_text += f"Session {i}: {session.get('exercises', 'N/A')} exercises, {session.get('duration', 0)}min, score: {session.get('score', 0)}/10\n"
+
+        prompt = f"""
+        Please generate a comprehensive workout report for my session:
+
+        Session Summary:
+        - Duration: {workout_summary.get('durationMinutes', 0)} minutes
+        - Exercises: {workout_summary.get('exercisesCompleted', 0)}
+        - Total Reps: {workout_summary.get('totalReps', 0)}
+        - Average Form Score: {workout_summary.get('avgFormScore', 0)}/10
+        {history_text}
+
+        Please provide:
+        1. Performance highlights
+        2. Areas for improvement
+        3. Progress trends (if history available)
+        4. Recommendations for next workout
+        5. Motivational message
+
+        Format as a well-structured report.
+        """
+
+        return await self.invoke_agent(
+            user_id=user_id,
+            session_id=session_id,
+            input_text=prompt,
+            context={"report_type": "workout_summary"},
+        )
+
+    async def chat_interactive(
+        self,
+        user_id: str,
+        session_id: str,
+        user_message: str,
+    ) -> Dict[str, Any]:
+        """
+        Interactive chat with PT Agent
+
+        Args:
+            user_id: User identifier
+            session_id: Conversation session ID
+            user_message: User's question or message
+
+        Returns:
+            Agent's response (conversational, with memory)
+        """
+        return await self.invoke_agent(
+            user_id=user_id,
+            session_id=session_id,
+            input_text=user_message,
+            context={"interaction_type": "chat"},
+        )
