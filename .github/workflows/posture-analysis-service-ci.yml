@@ -8,7 +8,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: gympt/posture-analysis-service
+  ECR_REPOSITORY: posture-analysis-service
 
 jobs:
   test:
