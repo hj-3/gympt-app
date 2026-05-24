@@ -43,6 +43,15 @@ export default function AICoachPage() {
 
     setLoading(true);
     try {
+      // Load body profile to enhance recommendation
+      let bodyProfile = null;
+      try {
+        const bodyResponse = await apiClient.getLatestBodyProfile();
+        bodyProfile = bodyResponse.data;
+      } catch (err) {
+        console.log('No body profile found, proceeding without it');
+      }
+
       const response = await apiClient.getWorkoutRecommendation({
         user_id: user.userId,
         goal: formData.goal,
@@ -50,6 +59,13 @@ export default function AICoachPage() {
         days_per_week: formData.days_per_week,
         equipment_available: formData.equipment_available,
         injuries_or_limitations: formData.injuries_or_limitations || undefined,
+        // Add body profile data for better recommendations
+        ...(bodyProfile && {
+          height: bodyProfile.height,
+          weight: bodyProfile.weight,
+          body_fat: bodyProfile.bodyFat,
+          muscle_mass: bodyProfile.muscleMass,
+        }),
       });
 
       if (response && response.data) {
