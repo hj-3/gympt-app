@@ -46,7 +46,7 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/gympt/.local
 
 # Copy application code
-COPY app ./app
+COPY src ./src
 
 # Change ownership
 RUN chown -R gympt:gympt /app
@@ -67,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8002/health || exit 1
 
 # Run application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--ws", "websockets"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]
