@@ -31,27 +31,26 @@ export default function ProfileInfoPage() {
             {/* Basic Info */}
             <div className="bg-white rounded-3xl p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                기본 정보
+                계정 정보
               </h2>
               <div className="space-y-3">
-                <InfoRow label="이름" value={user?.attributes?.name || '정보 없음'} />
-                <InfoRow label="이메일" value={user?.attributes?.email || '정보 없음'} />
-                <InfoRow label="전화번호" value={user?.attributes?.phone_number || '정보 없음'} />
+                <InfoRow label="이름" value={user?.attributes?.name || user?.name || '정보 없음'} />
+                <InfoRow label="이메일" value={user?.attributes?.email || user?.email || '정보 없음'} />
+                <InfoRow label="전화번호" value={user?.attributes?.phone_number || '등록 안됨'} />
+                <InfoRow label="사용자 ID" value={user?.username || user?.userId || '정보 없음'} />
               </div>
             </div>
 
-            {/* Body Info */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                신체 정보
-              </h2>
-              <div className="space-y-3">
-                <InfoRow label="키" value="175 cm" editable />
-                <InfoRow label="체중" value="70 kg" editable />
-                <InfoRow label="나이" value="28세" editable />
-                <InfoRow label="성별" value="남성" editable />
-              </div>
-            </div>
+            {/* Body Info Navigation */}
+            <button
+              onClick={() => router.push('/profile/body')}
+              className="w-full bg-white rounded-2xl p-4 shadow-sm hover:bg-gray-50 transition-colors flex items-center justify-between"
+            >
+              <span className="text-base font-medium text-gray-900">
+                신체 정보 관리
+              </span>
+              <ChevronLeftIcon className="w-5 h-5 text-gray-400 transform rotate-180" />
+            </button>
 
             {/* Account Actions */}
             <div className="space-y-3 pt-4">
@@ -65,8 +64,8 @@ export default function ProfileInfoPage() {
               </button>
               <button
                 onClick={() => {
-                  if (confirm('정말로 회원 탈퇴하시겠습니까?')) {
-                    // TODO: Implement account deletion
+                  if (confirm('정말로 회원 탈퇴하시겠습니까?\n\n모든 운동 기록과 데이터가 삭제됩니다.')) {
+                    // TODO: Implement account deletion API
                     alert('회원 탈퇴 기능은 준비 중입니다.');
                   }
                 }}
@@ -77,6 +76,14 @@ export default function ProfileInfoPage() {
                 </span>
               </button>
             </div>
+
+            {/* Info Message */}
+            <div className="bg-blue-50 rounded-2xl p-4 mt-6">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">안내:</span> 신체 정보는 '신체 정보 관리' 메뉴에서
+                인바디 측정 데이터와 함께 관리할 수 있습니다.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -84,18 +91,11 @@ export default function ProfileInfoPage() {
   );
 }
 
-function InfoRow({ label, value, editable = false }: { label: string; value: string; editable?: boolean }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-sm text-gray-600">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-900">{value}</span>
-        {editable && (
-          <button className="text-xs text-blue-600 hover:text-blue-700">
-            수정
-          </button>
-        )}
-      </div>
+      <span className="text-sm font-medium text-gray-900">{value}</span>
     </div>
   );
 }
