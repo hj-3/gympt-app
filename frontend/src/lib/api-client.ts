@@ -46,13 +46,19 @@ class ApiClient {
   }
 
   // Body Profile API
-  async getBodyProfile(userId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.get(`/api/v1/body-profiles/${userId}`);
+  async createBodyProfile(data: any): Promise<ApiResponse<any>> {
+    const response = await this.client.post('/api/v1/body-profiles', data);
     return response.data;
   }
 
-  async updateBodyProfile(userId: string, data: any): Promise<ApiResponse<any>> {
-    const response = await this.client.put(`/api/v1/body-profiles/${userId}`, data);
+  async getLatestBodyProfile(): Promise<ApiResponse<any>> {
+    const response = await this.client.get('/api/v1/body-profiles/latest');
+    return response.data;
+  }
+
+  async getBodyProfileHistory(limit?: number): Promise<ApiResponse<any>> {
+    const params = limit ? { limit } : {};
+    const response = await this.client.get('/api/v1/body-profiles/history', { params });
     return response.data;
   }
 

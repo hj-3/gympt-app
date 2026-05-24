@@ -75,10 +75,22 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">
-        안녕하세요, {user.name}님!
-      </h1>
-      <p className="text-gray-600 mb-8">오늘도 건강한 하루 되세요</p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">
+            안녕하세요, {user.name}님!
+          </h1>
+          <p className="text-gray-600">오늘도 건강한 하루 되세요</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/profile">
+            <Button variant="secondary">신체 정보</Button>
+          </Link>
+          <Link href="/workout">
+            <Button>운동 시작</Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid md:grid-cols-4 gap-6 mb-8">
