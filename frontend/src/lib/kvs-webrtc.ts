@@ -161,7 +161,7 @@ export class KVSWebRTCClient {
 
     const endpoints: { HTTPS: string; WSS: string } = { HTTPS: '', WSS: '' };
 
-    response.ResourceEndpointList?.forEach(endpoint => {
+    response.ResourceEndpointList?.forEach((endpoint: any) => {
       if (endpoint.Protocol === 'HTTPS' && endpoint.ResourceEndpoint) {
         endpoints.HTTPS = endpoint.ResourceEndpoint;
       } else if (endpoint.Protocol === 'WSS' && endpoint.ResourceEndpoint) {
@@ -194,7 +194,7 @@ export class KVSWebRTCClient {
 
     const iceServers: IceServer[] = [];
 
-    response.IceServerList?.forEach(iceServer => {
+    response.IceServerList?.forEach((iceServer: any) => {
       iceServers.push({
         urls: iceServer.Uris || [],
         username: iceServer.Username,
@@ -290,8 +290,8 @@ export class KVSWebRTCClient {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      if (this.signalingClient) {
-        this.signalingClient.sendSdpAnswer(answer);
+      if (this.signalingClient && answer) {
+        this.signalingClient.sendSdpAnswer(answer as any);
       }
     });
 
@@ -327,8 +327,8 @@ export class KVSWebRTCClient {
         });
         await pc.setLocalDescription(offer);
 
-        if (this.signalingClient) {
-          this.signalingClient.sendSdpOffer(offer);
+        if (this.signalingClient && offer) {
+          this.signalingClient.sendSdpOffer(offer as any);
         }
       });
     } else {
