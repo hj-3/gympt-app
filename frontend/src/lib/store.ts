@@ -1,9 +1,17 @@
 import { create } from 'zustand';
-import { User, WorkoutSession, RealtimeFeedback } from '@/types';
+import { WorkoutSession, RealtimeFeedback } from '@/types';
 import { apiClient } from './api-client';
+import {
+  loginWithCognito,
+  signupWithCognito,
+  logoutFromCognito,
+  getCurrentCognitoUser,
+  isAuthenticated as checkAuth,
+  CognitoUser,
+} from './auth';
 
 interface AuthState {
-  user: User | null;
+  user: CognitoUser | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
@@ -25,28 +33,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   login: async (email, password) => {
-    const response = await apiClient.login(email, password);
-    set({ user: response.user, isAuthenticated: true });
+    const user = await loginWithCognito(email, password);
+    set({ user, isAuthenticated: true });
   },
 
   signup: async (email, password, name) => {
-    const response = await apiClient.signup(email, password, name);
-    set({ user: response.user, isAuthenticated: true });
+    await signupWithCognito(email, password, name);
+    // After signup, user needs to verify email, then login
+    set({ user: null, isAuthenticated: false });
   },
 
   logout: async () => {
-    await apiClient.logout();
+    await logoutFromCognito();
     set({ user: null, isAuthenticated: false });
   },
 
   loadUser: async () => {
-    if (apiClient.isAuthenticated()) {
-      try {
-        const response = await apiClient.getCurrentUser();
-        set({ user: response.data, isAuthenticated: true });
-      } catch (error) {
+    try {
+      const authenticated = await checkAuth();
+      if (authenticated) {
+        const user = await getCurrentCognitoUser();
+        set({ user, isAuthenticated: true });
+      } else {
         set({ user: null, isAuthenticated: false });
       }
+    } catch (error) {
+      set({ user: null, isAuthenticated: false });
     }
   },
 }));

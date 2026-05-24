@@ -1,12 +1,9 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { AuthResponse, ApiResponse } from '@/types';
+import { ApiResponse } from '@/types';
+import { getAuthToken } from './auth';
 
 class ApiClient {
   private client: AxiosInstance;
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
-  private isRefreshing = false;
-  private refreshSubscribers: Array<(token: string) => void> = [];
 
   constructor() {
     this.client = axios.create({
@@ -18,151 +15,34 @@ class ApiClient {
     });
 
     this.setupInterceptors();
-    this.loadTokensFromStorage();
   }
 
   private setupInterceptors() {
-    // Request interceptor
+    // Request interceptor - add Cognito token
     this.client.interceptors.request.use(
-      (config: InternalAxiosRequestConfig) => {
-        if (this.accessToken && config.headers) {
-          config.headers.Authorization = `Bearer ${this.accessToken}`;
+      async (config: InternalAxiosRequestConfig) => {
+        const token = await getAuthToken();
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor
+    // Response interceptor - handle errors
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          if (this.isRefreshing) {
-            return new Promise((resolve) => {
-              this.refreshSubscribers.push((token: string) => {
-                if (originalRequest.headers) {
-                  originalRequest.headers.Authorization = `Bearer ${token}`;
-                }
-                resolve(this.client(originalRequest));
-              });
-            });
-          }
-
-          originalRequest._retry = true;
-          this.isRefreshing = true;
-
-          try {
-            const newAccessToken = await this.refreshAccessToken();
-            this.isRefreshing = false;
-            this.onRefreshed(newAccessToken);
-            this.refreshSubscribers = [];
-
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-            }
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            this.isRefreshing = false;
-            this.clearTokens();
-            if (typeof window !== 'undefined') {
-              window.location.href = '/login';
-            }
-            return Promise.reject(refreshError);
+        if (error.response?.status === 401) {
+          // Token expired, redirect to login
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
           }
         }
-
         return Promise.reject(error);
       }
     );
-  }
-
-  private onRefreshed(token: string) {
-    this.refreshSubscribers.forEach((callback) => callback(token));
-  }
-
-  private async refreshAccessToken(): Promise<string> {
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    const response = await axios.post<AuthResponse>(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-      { refreshToken: this.refreshToken }
-    );
-
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    return response.data.accessToken;
-  }
-
-  private loadTokensFromStorage() {
-    if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('accessToken');
-      this.refreshToken = localStorage.getItem('refreshToken');
-    }
-  }
-
-  public setTokens(accessToken: string, refreshToken: string) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-    }
-  }
-
-  public clearTokens() {
-    this.accessToken = null;
-    this.refreshToken = null;
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    }
-  }
-
-  public getAccessToken(): string | null {
-    return this.accessToken;
-  }
-
-  public isAuthenticated(): boolean {
-    return !!this.accessToken;
-  }
-
-  // Auth API
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/api/v1/auth/login', {
-      email,
-      password,
-    });
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    return response.data;
-  }
-
-  async signup(email: string, password: string, name: string): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/api/v1/auth/register', {
-      email,
-      password,
-      name,
-    });
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    return response.data;
-  }
-
-  async logout(): Promise<void> {
-    try {
-      await this.client.post('/api/v1/auth/logout');
-    } finally {
-      this.clearTokens();
-    }
-  }
-
-  async getCurrentUser(): Promise<ApiResponse<any>> {
-    const response = await this.client.get('/api/v1/users/me');
-    return response.data;
   }
 
   // Body Profile API
