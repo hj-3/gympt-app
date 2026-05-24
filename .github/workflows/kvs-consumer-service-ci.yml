@@ -113,15 +113,38 @@ jobs:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
           ENVIRONMENT: ${{ needs.build-and-push.outputs.environment }}
         run: |
-          VALUES_FILE="charts/kvs-consumer-service/values-${ENVIRONMENT}.yaml"
+          CHART_DIR="charts/kvs-consumer-service"
+          VALUES_FILE="${CHART_DIR}/values-${ENVIRONMENT}.yaml"
 
-          echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
-          sed -i "s/tag: \".*\"/tag: \"${IMAGE_TAG}\"/" ${VALUES_FILE}
+          # Create chart directory if not exists
+          if [ ! -d "${CHART_DIR}" ]; then
+            echo "Creating ${CHART_DIR}"
+            mkdir -p ${CHART_DIR}/templates
+            cat > ${CHART_DIR}/Chart.yaml <<EOF
+          apiVersion: v2
+          name: kvs-consumer-service
+          version: 1.0.0
+          EOF
+          fi
+
+          # Create or update values file
+          if [ ! -f "${VALUES_FILE}" ]; then
+            echo "Creating ${VALUES_FILE}"
+            cat > ${VALUES_FILE} <<EOF
+          image:
+            repository: 337112169365.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-${ENVIRONMENT}/kvs-consumer-service
+            tag: "${IMAGE_TAG}"
+            pullPolicy: Always
+          EOF
+          else
+            echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
+            sed -i "s/tag: \".*\"/tag: \"${IMAGE_TAG}\"/" ${VALUES_FILE}
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ${VALUES_FILE}
+          git add ${CHART_DIR}
           git commit -m "ci: Update kvs-consumer-service ${ENVIRONMENT} image to ${IMAGE_TAG}" \
             -m "Triggered by: ${{ github.sha }}" \
-            -m "Environment: ${ENVIRONMENT}"
+            -m "Environment: ${ENVIRONMENT}" || echo "No changes to commit"
           git push
