@@ -153,7 +153,6 @@ class EnhancedFrameProcessor:
             if rep_counter:
                 rep_result = rep_counter.count_reps(pose_data.get("keypoints", {}))
                 rep_count = rep_result.total_reps
-                current_state = rep_result.current_state
 
                 # Track rep count metric
                 if rep_count > rep_counter.total_reps:
