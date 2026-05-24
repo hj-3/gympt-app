@@ -3,7 +3,7 @@ API Routes for Posture Analysis Service
 """
 from fastapi import APIRouter, HTTPException, File, UploadFile, Request
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 import cv2
 import numpy as np
 import base64
@@ -31,7 +31,7 @@ class AnalyzeFrameResponse(BaseModel):
     """Response model for frame analysis"""
     form_score: float
     is_valid: bool
-    feedback: List[str]
+    feedback: list[str]
     angles: dict
     landmarks_count: int
 

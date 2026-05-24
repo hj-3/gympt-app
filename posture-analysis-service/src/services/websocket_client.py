@@ -2,7 +2,7 @@
 WebSocket client to send feedback to backend API
 """
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict
 from ..config.settings import settings
 
 
