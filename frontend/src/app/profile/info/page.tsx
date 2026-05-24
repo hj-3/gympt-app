@@ -80,7 +80,7 @@ export default function ProfileInfoPage() {
             {/* Info Message */}
             <div className="bg-blue-50 rounded-2xl p-4 mt-6">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">안내:</span> 신체 정보는 '신체 정보 관리' 메뉴에서
+                <span className="font-semibold">안내:</span> 신체 정보는 &apos;신체 정보 관리&apos; 메뉴에서
                 인바디 측정 데이터와 함께 관리할 수 있습니다.
               </p>
             </div>

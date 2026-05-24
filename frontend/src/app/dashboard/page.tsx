@@ -24,7 +24,6 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalWorkouts: 0,
@@ -38,7 +37,8 @@ export default function DashboardPage() {
     if (user?.userId) {
       loadDashboardData();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId]);
 
   const loadDashboardData = async () => {
     if (!user?.userId) return;
