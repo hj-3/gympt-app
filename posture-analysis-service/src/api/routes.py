@@ -8,8 +8,12 @@ import cv2
 import numpy as np
 import base64
 
+from ..services.websocket_client import WebSocketClient
 
 router = APIRouter()
+
+# Initialize WebSocket client
+ws_client = WebSocketClient()
 
 
 class AnalyzeFrameRequest(BaseModel):
@@ -18,6 +22,9 @@ class AnalyzeFrameRequest(BaseModel):
     frame_base64: str
     rep_phase: Optional[str] = None
     session_id: Optional[str] = None
+    user_id: Optional[str] = None
+    rep_count: Optional[int] = 0
+    send_websocket: Optional[bool] = False
 
 
 class AnalyzeFrameResponse(BaseModel):
@@ -83,13 +90,29 @@ async def analyze_frame(request: AnalyzeFrameRequest, req: Request):
         if "error" in form_result:
             raise HTTPException(status_code=400, detail=form_result["error"])
 
-        return AnalyzeFrameResponse(
+        response = AnalyzeFrameResponse(
             form_score=form_result["form_score"],
             is_valid=form_result["is_valid"],
             feedback=form_result["feedback"],
             angles=form_result.get("angles", {}),
             landmarks_count=len(pose_result["landmarks"]),
         )
+
+        # Send to WebSocket if requested
+        if request.send_websocket and request.session_id and request.user_id:
+            await ws_client.send_feedback(
+                session_id=request.session_id,
+                user_id=request.user_id,
+                exercise=request.exercise,
+                rep_count=request.rep_count or 0,
+                form_score=form_result["form_score"],
+                is_valid=form_result["is_valid"],
+                feedback=form_result["feedback"],
+                angles=form_result.get("angles", {}),
+                message_type="feedback",
+            )
+
+        return response
 
     except HTTPException:
         raise
