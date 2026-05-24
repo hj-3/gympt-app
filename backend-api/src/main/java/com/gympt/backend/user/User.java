@@ -24,7 +24,7 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "cognito_sub", nullable = false, unique = true, length = 255)
+    @Column(name = "cognito_sub", unique = true, length = 255)
     private String cognitoSub;
 
     @Column(nullable = false, length = 255)
