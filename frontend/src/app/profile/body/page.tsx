@@ -29,8 +29,8 @@ export default function BodyInfoPage() {
     try {
       setLoading(true);
       const response = await apiClient.getLatestBodyProfile();
-      if (response) {
-        setBodyData(response);
+      if (response && response.data) {
+        setBodyData(response.data);
       }
     } catch (error: any) {
       if (error.response?.status !== 404) {

@@ -52,12 +52,13 @@ export default function AICoachPage() {
         injuries_or_limitations: formData.injuries_or_limitations || undefined,
       });
 
-      if (response && response.recommendations) {
+      if (response && response.data) {
         toast.success('새로운 추천을 받았습니다!');
-        // 실제로는 response에서 추천 내용을 파싱해서 사용
+        // response.data에서 추천 내용 파싱
+        const recommendationText = (response.data as any).recommendations || (response.data as any).workout_plan || '';
         const newRec: Recommendation = {
           title: '맞춤 운동 프로그램',
-          content: response.recommendations || '추천 내용을 불러오는 중...',
+          content: recommendationText || '추천 내용을 불러오는 중...',
           category: 'workout',
           createdAt: new Date().toISOString(),
         };
