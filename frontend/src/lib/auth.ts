@@ -2,9 +2,16 @@ import { signIn, signUp, signOut, getCurrentUser, fetchAuthSession } from 'aws-a
 
 export interface CognitoUser {
   userId: string;
+  username?: string;
   email: string;
   name: string;
   emailVerified: boolean;
+  attributes?: {
+    name?: string;
+    email?: string;
+    phone_number?: string;
+    [key: string]: string | undefined;
+  };
 }
 
 export async function loginWithCognito(username: string, password: string): Promise<CognitoUser> {
@@ -61,9 +68,15 @@ export async function getCurrentCognitoUser(): Promise<CognitoUser> {
 
   return {
     userId: user.userId,
+    username: user.username,
     email: (payload?.email as string) || '',
     name: (payload?.name as string) || user.username,
     emailVerified: (payload?.email_verified as boolean) || false,
+    attributes: {
+      name: payload?.name as string,
+      email: payload?.email as string,
+      phone_number: payload?.phone_number as string,
+    },
   };
 }
 

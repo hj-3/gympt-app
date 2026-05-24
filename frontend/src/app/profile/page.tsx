@@ -85,12 +85,12 @@ export default function ProfilePage() {
             <MenuItem
               icon={BellIcon}
               label="알림 설정"
-              onClick={() => toast.info('준비 중입니다')}
+              onClick={() => toast('준비 중입니다')}
             />
             <MenuItem
               icon={QuestionMarkCircleIcon}
               label="고객센터"
-              onClick={() => toast.info('준비 중입니다')}
+              onClick={() => toast('준비 중입니다')}
             />
             <MenuItem
               icon={DocumentTextIcon}
