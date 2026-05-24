@@ -138,7 +138,7 @@ class ApiClient {
     return response.data;
   }
 
-  // AI Agent API (agent-service)
+  // AI Agent API (via backend-api gateway)
   async getWorkoutRecommendation(data: {
     user_id: string;
     goal: string;
@@ -146,19 +146,14 @@ class ApiClient {
     days_per_week: number;
     equipment_available?: string[];
     injuries_or_limitations?: string;
+    height?: number;
+    weight?: number;
+    body_fat?: number;
+    muscle_mass?: number;
   }): Promise<ApiResponse<any>> {
-    const agentBaseURL = process.env.NEXT_PUBLIC_AGENT_API_URL || `${process.env.NEXT_PUBLIC_API_URL}/agent`;
-    const response = await axios.post(
-      `${agentBaseURL}/workout/recommend`,
-      data,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getAuthToken()}`,
-        },
-        timeout: 60000, // AI 응답은 시간이 걸릴 수 있음
-      }
-    );
+    const response = await this.client.post('/api/v1/agent/workout-recommendation', data, {
+      timeout: 60000, // AI 응답은 시간이 걸릴 수 있음
+    });
     return response.data;
   }
 
@@ -168,18 +163,9 @@ class ApiClient {
     exercise_name: string;
     posture_issues?: string[];
   }): Promise<ApiResponse<any>> {
-    const agentBaseURL = process.env.NEXT_PUBLIC_AGENT_API_URL || `${process.env.NEXT_PUBLIC_API_URL}/agent`;
-    const response = await axios.post(
-      `${agentBaseURL}/posture/feedback`,
-      data,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getAuthToken()}`,
-        },
-        timeout: 60000,
-      }
-    );
+    const response = await this.client.post('/api/v1/agent/posture-feedback', data, {
+      timeout: 60000,
+    });
     return response.data;
   }
 }
