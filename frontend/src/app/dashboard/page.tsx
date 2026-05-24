@@ -38,7 +38,7 @@ export default function DashboardPage() {
       if (!user) return;
 
       try {
-        const statsRes = await apiClient.getStats(user.id);
+        const statsRes = await apiClient.getStats(user.userId);
         setStats(statsRes.data);
       } catch (error: any) {
         console.error('Failed to load dashboard data:', error);

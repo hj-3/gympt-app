@@ -39,7 +39,7 @@ export default function WorkoutPage() {
 
     try {
       // Start workout session in backend
-      await startSession(user.id, 'default-routine');
+      await startSession(user.userId, 'default-routine');
 
       // Generate session ID
       const sid = `session-${Date.now()}`;

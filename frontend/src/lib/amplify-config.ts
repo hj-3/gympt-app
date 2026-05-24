@@ -9,22 +9,6 @@ const amplifyConfig = {
       loginWith: {
         email: true,
       },
-      signUpVerificationMethod: 'code',
-      userAttributes: {
-        email: {
-          required: true,
-        },
-        name: {
-          required: true,
-        },
-      },
-      passwordFormat: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireNumbers: true,
-        requireSpecialCharacters: true,
-      },
     },
   },
 };

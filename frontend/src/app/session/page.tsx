@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { WebSocketClient } from '@/lib/websocket-client';
 import { KVSWebRTCClient } from '@/lib/kvs-client';
 import { apiClient } from '@/lib/api-client';
+import { getAuthToken } from '@/lib/auth';
 import { useWorkoutStore } from '@/lib/store';
 import { RealtimeFeedback } from '@/types';
 import toast from 'react-hot-toast';
@@ -49,7 +50,7 @@ function SessionContent() {
         setIsStreaming(true);
 
         // Initialize WebSocket for feedback
-        const token = apiClient.getAccessToken();
+        const token = await getAuthToken();
         if (token) {
           ws = new WebSocketClient(token);
           await ws.connect(sessionId);
