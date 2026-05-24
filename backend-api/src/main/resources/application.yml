@@ -57,6 +57,10 @@ spring:
     time-zone: Asia/Seoul
     default-property-inclusion: non_null
 
+  web:
+    resources:
+      add-mappings: false
+
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
