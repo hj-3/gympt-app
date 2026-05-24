@@ -1,85 +1,112 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
 interface PostureAnalysis {
-  score: number;
+  formScore: number;
+  isValid: boolean;
   feedback: string[];
-  landmarks: any[];
+  angles: Record<string, number>;
   timestamp: string;
+  repCount: number;
 }
 
 export function usePostureAnalysis() {
-  const ws = useRef<WebSocket | null>(null);
+  const stompClient = useRef<Client | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [analysis, setAnalysis] = useState<PostureAnalysis | null>(null);
   const [repCount, setRepCount] = useState(0);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  const connect = useCallback(async (sessionId?: string) => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8002';
-    const sid = sessionId || Date.now().toString();
+  const connect = useCallback(async (sessionId: string) => {
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8080';
 
-    ws.current = new WebSocket(`${wsUrl}/ws/posture/${sid}`);
+    // Create STOMP client over SockJS
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${wsUrl}/ws`),
+      debug: (str) => {
+        console.log('STOMP Debug:', str);
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
 
-    ws.current.onopen = () => {
+    client.onConnect = () => {
+      console.log('STOMP Connected to session:', sessionId);
       setIsConnected(true);
-      console.log('WebSocket connected');
-    };
+      setCurrentSessionId(sessionId);
 
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+      // Subscribe to session-specific topic
+      client.subscribe(`/topic/workout/${sessionId}`, (message) => {
+        try {
+          const data = JSON.parse(message.body);
+          console.log('Received posture feedback:', data);
 
-        if (data.type === 'analysis') {
           setAnalysis({
-            score: data.score || 0,
+            formScore: data.formScore || 0,
+            isValid: data.isValid || false,
             feedback: data.feedback || [],
-            landmarks: data.landmarks || [],
-            timestamp: new Date().toISOString(),
+            angles: data.angles || {},
+            timestamp: data.timestamp || new Date().toISOString(),
+            repCount: data.repCount || 0,
           });
 
-          if (data.rep_count !== undefined) {
-            setRepCount(data.rep_count);
+          if (data.repCount !== undefined) {
+            setRepCount(data.repCount);
           }
+        } catch (error) {
+          console.error('Error parsing message:', error);
         }
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-      }
+      });
+
+      // Send subscription message
+      client.publish({
+        destination: `/app/workout/subscribe/${sessionId}`,
+        body: JSON.stringify({ sessionId }),
+      });
     };
 
-    ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.current.onclose = () => {
+    client.onStompError = (frame) => {
+      console.error('STOMP Error:', frame.headers['message']);
+      console.error('Details:', frame.body);
       setIsConnected(false);
-      console.log('WebSocket disconnected');
     };
+
+    client.onWebSocketClose = () => {
+      console.log('WebSocket connection closed');
+      setIsConnected(false);
+    };
+
+    client.activate();
+    stompClient.current = client;
   }, []);
 
   const disconnect = useCallback(() => {
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+    if (stompClient.current) {
+      stompClient.current.deactivate();
+      stompClient.current = null;
     }
     setIsConnected(false);
     setAnalysis(null);
     setRepCount(0);
+    setCurrentSessionId(null);
   }, []);
 
+  // This is now just a stub - actual frame analysis happens via REST API
   const sendFrame = useCallback((frame: string, exercise: string) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      try {
-        ws.current.send(
-          JSON.stringify({
-            type: 'frame',
-            frame,
-            exercise,
-            timestamp: Date.now(),
-          })
-        );
-      } catch (error) {
-        console.error('Error sending frame:', error);
+    // Frames are sent via REST API to posture-analysis-service
+    // which then pushes results to WebSocket
+    console.log('Frame capture - to be sent via REST API');
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (stompClient.current) {
+        stompClient.current.deactivate();
       }
-    }
+    };
   }, []);
 
   return {
@@ -89,5 +116,6 @@ export function usePostureAnalysis() {
     analysis,
     repCount,
     isConnected,
+    sessionId: currentSessionId,
   };
 }

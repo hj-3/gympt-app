@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.4",
+    "@stomp/stompjs": "^7.0.0",
     "amazon-kinesis-video-streams-webrtc": "2.8.0",
     "aws-amplify": "^6.17.0",
     "axios": "1.6.8",
@@ -28,6 +29,7 @@
     "react-hot-toast": "2.4.1",
     "react-query": "3.39.3",
     "recharts": "2.12.7",
+    "sockjs-client": "^1.6.1",
     "zustand": "4.5.2"
   },
   "devDependencies": {

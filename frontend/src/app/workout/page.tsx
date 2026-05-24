@@ -9,6 +9,7 @@ import { PostureFeedback } from '@/components/workout/PostureFeedback';
 import { RepCounter } from '@/components/workout/RepCounter';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { postureApi } from '@/lib/posture-api';
 import toast from 'react-hot-toast';
 
 export default function WorkoutPage() {
@@ -78,9 +79,23 @@ export default function WorkoutPage() {
     }
   };
 
-  const handleFrameCapture = (frame: string) => {
-    if (isConnected) {
-      sendFrame(frame, exercise);
+  const handleFrameCapture = async (frame: string) => {
+    if (!isConnected || !sessionId || !user) return;
+
+    try {
+      // Send frame to posture-analysis-service
+      // It will analyze and push results to WebSocket
+      await postureApi.analyzeFrame({
+        exercise,
+        frame_base64: frame,
+        session_id: sessionId,
+        user_id: user.userId,
+        rep_count: repCount,
+        send_websocket: true, // Enable WebSocket broadcasting
+      });
+    } catch (error) {
+      console.error('Frame analysis failed:', error);
+      // Don't show error toast on every frame - just log it
     }
   };
 
