@@ -1,7 +1,6 @@
 """Async DynamoDB client for posture event logging."""
 import logging
-from typing import Dict, List, Optional
-from datetime import datetime
+from typing import Dict, List
 import aioboto3
 from botocore.exceptions import ClientError
 

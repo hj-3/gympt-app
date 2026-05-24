@@ -1,6 +1,6 @@
 """Rep counting with state machine for exercise tracking."""
 import logging
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
 

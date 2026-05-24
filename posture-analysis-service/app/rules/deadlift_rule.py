@@ -151,7 +151,6 @@ class DeadliftRule:
 
         knee_x = left_knee.get("x", 0)
         ankle_x = left_ankle.get("x", 0)
-        wrist_x = left_wrist.get("x", 0)  # Proxy for bar position
 
         # Knees should not extend far beyond bar position
         # In good deadlift, shins should be relatively vertical

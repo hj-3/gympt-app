@@ -1,8 +1,7 @@
 """Enhanced frame processor with MediaPipe, rep counting, and AWS integration."""
-import asyncio
 import time
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict
 import numpy as np
 
 from app.config import settings
@@ -17,7 +16,7 @@ from app.rules.deadlift_rule import DeadliftRule
 from app.services.session_service import SessionService
 from app.clients.dynamodb_client import AsyncDynamoDBClient
 from app.schemas.websocket import WebSocketResponse
-from app.schemas.analysis import IssueDetail, Severity
+from app.schemas.analysis import IssueDetail
 from app.metrics import (
     frames_processed_total,
     frame_processing_duration,
@@ -164,7 +163,6 @@ class EnhancedFrameProcessor:
                     ).inc()
             else:
                 rep_count = 0
-                current_state = "starting"
 
             # 4. Update Session Metrics
             score = analysis_result.get("score", 0.0)

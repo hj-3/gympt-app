@@ -1,7 +1,7 @@
 """Async SQS client for publishing posture analysis events."""
 import logging
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 import aioboto3
 from botocore.exceptions import ClientError

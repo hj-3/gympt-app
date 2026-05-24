@@ -1,8 +1,7 @@
 from fastapi import WebSocket
-from typing import Dict, Optional
+from typing import Dict
 import logging
 import json
-import asyncio
 import base64
 import numpy as np
 import cv2

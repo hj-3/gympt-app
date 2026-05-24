@@ -3,7 +3,6 @@ import logging
 import json
 from typing import Dict, Optional, List
 from datetime import datetime
-import asyncio
 
 from app.schemas.session import SessionSummary, SessionState, SessionMetrics
 from app.clients.redis_client import redis_client
