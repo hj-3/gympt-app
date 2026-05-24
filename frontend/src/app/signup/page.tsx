@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 export default function SignupPage() {
   const router = useRouter();
   const { signup, login } = useAuthStore();
+  const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
   const [errors, setErrors] = useState({
+    username: '',
     name: '',
     email: '',
     password: '',
@@ -30,12 +32,17 @@ export default function SignupPage() {
 
   const validateForm = () => {
     const newErrors = {
+      username: '',
       name: '',
       email: '',
       password: '',
       confirmPassword: '',
       phoneNumber: '',
     };
+
+    if (!/^[a-z0-9_]+$/.test(username) || username.length < 3) {
+      newErrors.username = '사용자명은 영문 소문자, 숫자, 언더스코어만 사용 가능하며 3자 이상이어야 합니다';
+    }
 
     if (name.length < 2) {
       newErrors.name = '이름은 2자 이상이어야 합니다';
@@ -78,7 +85,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await signup(email, password, name, phoneNumber);
+      await signup(username, email, password, name, phoneNumber);
       toast.success('인증 코드가 이메일로 전송되었습니다!');
       setNeedsConfirmation(true);
     } catch (error: any) {
@@ -109,9 +116,6 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // Use username format for confirmation (email prefix)
-      const username = email.split('@')[0].toLowerCase();
-
       await confirmSignUp({
         username,
         confirmationCode,
@@ -120,7 +124,7 @@ export default function SignupPage() {
       toast.success('이메일 인증 완료! 로그인 중...');
 
       // Auto login after confirmation
-      await login(email, password);
+      await login(username, password);
       router.push('/dashboard');
     } catch (error: any) {
       let errorMessage = '인증에 실패했습니다';
@@ -182,6 +186,17 @@ export default function SignupPage() {
           </form>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            label="사용자명 (로그인 ID)"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            placeholder="예: gympt_user123"
+            error={errors.username}
+            helperText="영문 소문자, 숫자, 언더스코어만 사용 (3자 이상)"
+            required
+          />
+
           <Input
             label="이름"
             type="text"

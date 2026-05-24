@@ -13,8 +13,8 @@ import {
 interface AuthState {
   user: CognitoUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  signup: (username: string, email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
 }
@@ -32,13 +32,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
 
-  login: async (email, password) => {
-    const user = await loginWithCognito(email, password);
+  login: async (username, password) => {
+    const user = await loginWithCognito(username, password);
     set({ user, isAuthenticated: true });
   },
 
-  signup: async (email, password, name, phoneNumber) => {
-    await signupWithCognito(email, password, name, phoneNumber);
+  signup: async (username, email, password, name, phoneNumber) => {
+    await signupWithCognito(username, email, password, name, phoneNumber);
     // After signup, user needs to verify email, then login
     set({ user: null, isAuthenticated: false });
   },

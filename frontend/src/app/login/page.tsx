@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,14 +22,14 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(email, password);
+      await login(username, password);
       toast.success('로그인에 성공했습니다!');
       router.push('/dashboard');
     } catch (err: any) {
       let errorMessage = '로그인에 실패했습니다';
 
       if (err.message?.includes('UserNotFoundException') || err.message?.includes('NotAuthorizedException')) {
-        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다';
+        errorMessage = '사용자명 또는 비밀번호가 올바르지 않습니다';
       } else if (err.message?.includes('UserNotConfirmedException')) {
         errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요';
       } else {
@@ -58,11 +58,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            label="이메일"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="your@email.com"
+            label="사용자명"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="회원가입 시 입력한 사용자명"
             required
           />
 

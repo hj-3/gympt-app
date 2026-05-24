@@ -7,47 +7,26 @@ export interface CognitoUser {
   emailVerified: boolean;
 }
 
-export async function loginWithCognito(email: string, password: string): Promise<CognitoUser> {
-  // Try login with email first, fallback to username
-  try {
-    const { isSignedIn } = await signIn({
-      username: email,
-      password,
-    });
+export async function loginWithCognito(username: string, password: string): Promise<CognitoUser> {
+  const { isSignedIn } = await signIn({
+    username,
+    password,
+  });
 
-    if (!isSignedIn) {
-      throw new Error('Sign in failed');
-    }
-
-    return await getCurrentCognitoUser();
-  } catch (error: any) {
-    // If email login fails, try with username format
-    if (error.message?.includes('UserNotFoundException')) {
-      const username = email.split('@')[0].toLowerCase();
-      const { isSignedIn } = await signIn({
-        username,
-        password,
-      });
-
-      if (!isSignedIn) {
-        throw new Error('Sign in failed');
-      }
-
-      return await getCurrentCognitoUser();
-    }
-    throw error;
+  if (!isSignedIn) {
+    throw new Error('Sign in failed');
   }
+
+  return await getCurrentCognitoUser();
 }
 
 export async function signupWithCognito(
+  username: string,
   email: string,
   password: string,
   name: string,
   phoneNumber?: string
 ): Promise<{ userId: string; email: string }> {
-  // Generate username from email (without @ and domain)
-  const username = email.split('@')[0].toLowerCase();
-
   const userAttributes: any = {
     email,
     name,
