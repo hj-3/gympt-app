@@ -1,338 +1,433 @@
-# GYMPT 애플리케이션
+# GYMPT Application - AI Personal Training Platform
 
-AI 기반 개인화 운동 트레이닝 플랫폼
+> **GYMPT**: Your AI-powered personal trainer that combines real-time posture analysis, personalized workout planning, and intelligent fitness coaching.
 
-## 📋 프로젝트 개요
+[![Production](https://img.shields.io/badge/production-g2mpt.com-success)](https://g2mpt.com)
+[![Dev Environment](https://img.shields.io/badge/dev-dev.g2mpt.com-blue)](https://dev.g2mpt.com)
+[![AWS](https://img.shields.io/badge/AWS-EKS-orange)](https://aws.amazon.com/eks/)
+[![Bedrock Agent](https://img.shields.io/badge/AWS-Bedrock_Agent-blueviolet)](https://aws.amazon.com/bedrock/)
 
-GYMPT는 AI와 컴퓨터 비전을 활용한 실시간 운동 자세 분석 및 개인화 트레이닝 플랫폼입니다.
+## 🎯 Overview
 
-### 주요 기능
+GYMPT is a cloud-native, microservices-based AI personal training platform that provides:
 
-- 🎯 **AI 기반 개인화 운동 추천** - AWS Bedrock Claude를 활용한 맞춤형 운동 계획
-- 📹 **실시간 자세 분석** - MediaPipe 기반 자세 교정 및 피드백
-- 📊 **운동 성과 리포트** - 데이터 기반 진행 상황 분석 및 시각화
-- 🔔 **자동 복구 시스템** - 장애 자동 감지 및 복구
-- 📱 **웨어러블 디바이스 연동** - 다양한 피트니스 디바이스 데이터 통합
+- **🤖 AI Personal Trainer**: Bedrock Agent with RAG-based knowledge for personalized coaching
+- **📹 Real-time Posture Analysis**: Computer vision-based exercise form correction
+- **💪 Personalized Workout Plans**: AI-generated routines based on body profile and goals
+- **📊 Intelligent Reports**: Comprehensive workout analytics with AI insights
+- **💬 Interactive Chat**: Conversational PT with memory and context awareness
+- **📱 Mobile-First UI**: Responsive design for seamless mobile experience
 
----
+## 🏗️ Architecture
 
-## 🏗️ 아키텍처
-
-### 서비스 구성
-
-| 서비스 | 역할 | 기술 스택 |
-|--------|------|-----------|
-| **Backend API** | 사용자/운동 데이터 관리 | Spring Boot 3.2, PostgreSQL, Redis |
-| **Agent Service** | AI 추천 엔진 | FastAPI, AWS Bedrock (Claude) |
-| **Posture Analysis** | 실시간 자세 분석 | FastAPI, MediaPipe, OpenCV |
-| **Remediation Worker** | 자동 장애 복구 | FastAPI, Kubernetes API |
-| **Lambda Functions** | 서버리스 작업 처리 | Python 3.12, AWS Lambda |
-| **Frontend** | 웹 애플리케이션 | Next.js 14, TypeScript |
-
-### 기술 스택
-
-**Backend:**
-- Language: Java 21, Python 3.12
-- Frameworks: Spring Boot 3.2, FastAPI 0.109
-- Databases: PostgreSQL 15 (RDS), DynamoDB, ElastiCache (Redis)
-
-**AI/ML:**
-- AWS Bedrock (Claude 3 Sonnet)
-- MediaPipe 0.10
-- OpenCV 4.9
-
-**Infrastructure:**
-- Platform: AWS EKS (Kubernetes 1.28)
-- Messaging: SQS, EventBridge
-- Storage: S3, ECR
-- Streaming: Kinesis Video Streams
-- Monitoring: Prometheus, Grafana, CloudWatch
-
-**Frontend:**
-- Framework: Next.js 14 (App Router)
-- Language: TypeScript 5.3
-- Deployment: S3 + CloudFront
-
----
-
-## 🚀 빠른 시작
-
-### 사전 요구사항
-
-```bash
-# 필수 설치
-- Docker Desktop 4.20+
-- Docker Compose 2.20+
-- Git 2.40+
-
-# 언어별 런타임 (로컬 개발 시)
-- Java 21
-- Python 3.12
-- Node.js 18+
-
-# AWS CLI (배포 시)
-- AWS CLI v2
-- kubectl 1.28+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js 14)                         │
+│                  https://g2mpt.com (S3 + CloudFront)             │
+│                    AWS Cognito Authentication                    │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ↓
+┌──────────────────────────────────────────────────────────────────┐
+│                Backend API (Spring Boot 3.2)                      │
+│              https://api.g2mpt.com/api/v1                        │
+│              OAuth2 Resource Server (Cognito JWT)                │
+└───────┬────────────┬───────────────┬────────────────┬───────────┘
+        │            │               │                │
+        ↓            ↓               ↓                ↓
+┌──────────┐  ┌─────────────┐  ┌──────────┐  ┌──────────────┐
+│  Agent   │  │  Posture    │  │  Report  │  │  WebSocket   │
+│  Service │  │  Analysis   │  │  Service │  │   Server     │
+│ (FastAPI)│  │  (Python)   │  │ (Python) │  │ (Spring WS)  │
+└────┬─────┘  └──────┬──────┘  └────┬─────┘  └──────────────┘
+     │               │              │
+     ↓               ↓              ↓
+┌─────────────┐  ┌────────┐  ┌──────────┐
+│   Bedrock   │  │  KVS   │  │ DynamoDB │
+│    Agent    │  │        │  │PostgreSQL│
+│  + KB (RAG) │  │        │  │    S3    │
+└─────────────┘  └────────┘  └──────────┘
 ```
 
-### 로컬 개발 환경
+## 📦 Microservices
 
-#### 1. 레포지토리 클론
+### 1. Backend API (Spring Boot)
+**Port**: 8080  
+**Path**: `/backend-api`
 
-```bash
-git clone https://github.com/YOUR_ORG/gympt-app.git
-cd gympt-app
-```
+- User management and authentication
+- Body profile and workout goal CRUD
+- Workout session orchestration
+- Posture feedback aggregation
+- OAuth2 JWT validation (Cognito)
 
-#### 2. 환경 변수 설정
+**Key Features**:
+- Spring Security with Cognito integration
+- PostgreSQL (user data) + DynamoDB (time-series data)
+- RESTful API with OpenAPI documentation
+- IRSA for AWS service access
 
-```bash
-cp .env.example .env
-# .env 파일 수정 (데이터베이스 연결 정보 등)
-```
+### 2. Agent Service (FastAPI)
+**Port**: 8001  
+**Path**: `/agent-service`
 
-#### 3. Docker Compose로 전체 스택 실행
+- Bedrock Agent integration
+- Workout plan generation (RAG-based)
+- Real-time posture feedback analysis
+- Workout report generation
+- Interactive PT chat with memory
 
-```bash
-cd local
-docker-compose up -d
+**Key Features**:
+- AWS Bedrock Agent Runtime client
+- Knowledge Base for exercise/nutrition info
+- Action Groups for user data access
+- Session-based conversation memory
 
-# 로그 확인
-docker-compose logs -f
-```
+### 3. Posture Analysis Service (Python)
+**Port**: 8002  
+**Path**: `/posture-analysis`
 
-**실행되는 서비스:**
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- LocalStack (AWS emulator): `localhost:4566`
-- Prometheus: `localhost:9090`
-- Grafana: `localhost:3000`
+- Real-time video frame analysis
+- Pose estimation with MediaPipe/OpenPose
+- Exercise-specific form validation
+- Angle and position calculations
+- KVS integration for video streaming
 
-#### 4. 개별 서비스 실행
+**Key Features**:
+- ML model for posture detection
+- WebSocket support for real-time feedback
+- Frame-by-frame analysis
+- Exercise library validation rules
 
-**Backend API:**
+### 4. Report Service (Python)
+**Port**: 8003  
+**Path**: `/report-service`
+
+- Workout report generation
+- PDF creation with charts
+- S3 report storage
+- Historical trend analysis
+
+**Key Features**:
+- ReportLab for PDF generation
+- Matplotlib for data visualization
+- DynamoDB query for historical data
+- Pre-signed S3 URLs for report access
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Docker Desktop (for local development)
+- AWS CLI configured with credentials
+- kubectl and helm installed
+- Node.js 18+ (for frontend)
+- Python 3.11+ (for Python services)
+- Java 17+ (for backend)
+
+### Local Development
+
+#### 1. Backend API
+
 ```bash
 cd backend-api
 ./gradlew bootRun
-# http://localhost:8080
 ```
 
-**Agent Service:**
+Runs on `http://localhost:8080`
+
+#### 2. Agent Service
+
 ```bash
 cd agent-service
-python -m venv venv && source venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
-# http://localhost:8001/docs
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-**Posture Analysis Service:**
+Runs on `http://localhost:8001`
+
+#### 3. Posture Analysis Service
+
 ```bash
-cd posture-analysis-service
-python -m venv venv && source venv/bin/activate
+cd posture-analysis
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8002
-# http://localhost:8002/docs
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8002
 ```
 
-**Frontend:**
+Runs on `http://localhost:8002`
+
+#### 4. Report Service
+
+```bash
+cd report-service
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8003
+```
+
+Runs on `http://localhost:8003`
+
+#### 5. Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
-# http://localhost:3000
 ```
 
-#### 5. API 테스트
+Runs on `http://localhost:3000`
+
+### Environment Variables
+
+Each service requires specific environment variables. See `.env.example` files in each directory.
+
+**Backend API** (`backend-api/.env`):
+```env
+SPRING_PROFILES_ACTIVE=local
+COGNITO_USER_POOL_ID=ap-northeast-2_XXXXXXXXX
+COGNITO_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXX
+COGNITO_REGION=ap-northeast-2
+DATABASE_URL=jdbc:postgresql://localhost:5432/gympt
+DYNAMODB_TABLE_PREFIX=gympt-local
+AWS_REGION=ap-northeast-2
+```
+
+**Agent Service** (`agent-service/.env`):
+```env
+BEDROCK_AGENT_ID=XXXXXXXXXX
+BEDROCK_AGENT_ALIAS_ID=YYYYYYYYYY
+BEDROCK_REGION=us-west-2
+AWS_REGION=ap-northeast-2
+```
+
+**Frontend** (`frontend/.env.local`):
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=ap-northeast-2_XXXXXXXXX
+NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXX
+NEXT_PUBLIC_COGNITO_REGION=ap-northeast-2
+```
+
+## 📚 Documentation
+
+- **[ARCHITECTURE.md](../ARCHITECTURE.md)** - System architecture and design decisions
+- **[DEPLOYMENT.md](../DEPLOYMENT.md)** - Deployment guide for all environments
+- **[MANUAL_SETUP.md](../MANUAL_SETUP.md)** - One-time AWS service setup (Cognito, SES, S3, etc.)
+- **[BEDROCK_AGENT_SETUP.md](../BEDROCK_AGENT_SETUP.md)** - Bedrock Agent and Knowledge Base setup
+- **[API.md](./API.md)** - API documentation for all services
+- **[SES_SETUP.md](../SES_SETUP.md)** - Amazon SES configuration for email delivery
+
+## 🔧 Building and Deployment
+
+### Docker Build
+
+Each service has a Dockerfile for containerization:
 
 ```bash
-# Health check
-curl http://localhost:8080/actuator/health
+# Backend API
+docker build -t gympt/backend-api:latest -f backend-api/Dockerfile .
 
-# 회원가입
-curl -X POST http://localhost:8080/api/v1/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "Password1!",
-    "name": "테스트유저"
-  }'
+# Agent Service
+docker build -t gympt/agent-service:latest -f agent-service/Dockerfile .
 
-# 로그인
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "Password1!"
-  }'
+# Posture Analysis Service
+docker build -t gympt/posture-analysis:latest -f posture-analysis/Dockerfile .
+
+# Report Service
+docker build -t gympt/report-service:latest -f report-service/Dockerfile .
 ```
 
----
+### Push to ECR
 
-## 📖 문서
+```bash
+# Authenticate to ECR
+aws ecr get-login-password --region ap-northeast-2 | \
+  docker login --username AWS --password-stdin 337112169365.dkr.ecr.ap-northeast-2.amazonaws.com
 
-### 개발 가이드
+# Tag and push
+docker tag gympt/backend-api:latest \
+  337112169365.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-backend-api:latest
+docker push 337112169365.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-backend-api:latest
+```
 
-- [개발 가이드](docs/개발가이드.md) - 로컬 환경 설정, 서비스별 개발 가이드
-- [아키텍처](docs/아키텍처.md) - 시스템 아키텍처, 데이터 플로우
-- [API 문서](docs/API문서.md) - RESTful API 레퍼런스
-- [테스트 가이드](docs/테스트가이드.md) - 단위/통합/E2E 테스트 가이드
-- [배포 가이드](docs/배포가이드.md) - CI/CD 파이프라인, 배포 절차
-- [보안 가이드](docs/보안가이드.md) - 환경 변수 및 Secret 관리
+### Deploy to EKS
 
-### 서비스별 문서
+Deployment is managed via GitOps with Argo CD. See [gympt-gitops](../gympt-gitops/README.md) repository.
 
-- [Backend API](backend-api/README.md) - Spring Boot API 상세 가이드
-- [Agent Service](agent-service/README.md) - AI 추천 서비스 가이드
-- [Posture Analysis Service](posture-analysis-service/README.md) - 자세 분석 서비스 가이드
-- [Remediation Worker](remediation-worker/README.md) - 자동 복구 워커 가이드
-- [Frontend](frontend/README.md) - Next.js 프론트엔드 가이드
-- [Lambdas](lambdas/README.md) - Lambda 함수 목록 및 설명
+```bash
+# Update Helm values in gympt-gitops
+cd ../gympt-gitops/apps/gympt-prod/backend-api
+# Edit values.yaml
+git commit -m "Update backend-api image tag"
+git push
 
----
+# Argo CD will automatically sync
+```
 
-## 🧪 테스트
+## 🧪 Testing
 
-### Backend API
+### Backend API Tests
 
 ```bash
 cd backend-api
 ./gradlew test
-./gradlew jacocoTestReport  # 커버리지 리포트
 ```
 
-### Python Services
+### Agent Service Tests
 
 ```bash
 cd agent-service
-pytest tests/ -v --cov=app --cov-report=html
-
-cd posture-analysis-service
-pytest tests/ -v --cov=app --cov-report=html
+pytest tests/ -v
 ```
 
-### Frontend
+### Posture Analysis Tests
+
+```bash
+cd posture-analysis
+pytest tests/ -v
+```
+
+### Frontend Tests
 
 ```bash
 cd frontend
-npm run test           # Unit tests
-npm run cypress:open   # E2E tests
+npm run test
 ```
 
-### Lambda Functions
+## 📊 Monitoring
+
+### Health Checks
+
+- Backend API: `https://api.g2mpt.com/api/v1/health`
+- Agent Service: `https://api.g2mpt.com/agent/health`
+- Posture Analysis: `https://api.g2mpt.com/posture/health`
+- Report Service: `https://api.g2mpt.com/report/health`
+
+### CloudWatch Logs
 
 ```bash
-cd lambdas
-for lambda_dir in */; do
-  cd "$lambda_dir" && pytest tests/ -v && cd ..
-done
+# Backend API logs
+kubectl logs -f deployment/backend-api -n gympt-prod
+
+# Agent Service logs
+kubectl logs -f deployment/agent-service -n gympt-prod
 ```
 
-**전체 테스트 커버리지:** 80%+ (526+ 테스트 케이스)
+### Metrics
+
+Prometheus metrics are exposed at `/actuator/prometheus` (Backend API) and `/metrics` (FastAPI services).
+
+## 🔐 Security
+
+### Authentication Flow
+
+1. User signs up via Cognito (username + email + password)
+2. Email verification (via SES in production)
+3. User logs in with username/password
+4. Cognito returns JWT tokens (ID token, access token, refresh token)
+5. Frontend stores tokens in `AuthContext`
+6. Backend validates JWT using Cognito public keys
+7. Backend maps `cognito:sub` to internal User UUID
+
+### Authorization
+
+- Spring Security with OAuth2 Resource Server
+- Role-based access control (ROLE_USER, ROLE_ADMIN)
+- IRSA for pod-level AWS service access
+
+### Secrets Management
+
+- AWS Secrets Manager for sensitive values
+- Kubernetes Secrets for pod environment variables
+- External Secrets Operator for GitOps integration
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**Issue**: "Access Denied" errors from AWS services
+- **Solution**: Verify IRSA is properly configured. Check service account annotations and IAM role trust policy.
+
+**Issue**: Cognito JWT validation fails
+- **Solution**: Ensure `COGNITO_USER_POOL_ID` and `COGNITO_REGION` are correct. Check Cognito public keys are accessible.
+
+**Issue**: Bedrock Agent invocation fails
+- **Solution**: Verify `BEDROCK_AGENT_ID` and `BEDROCK_AGENT_ALIAS_ID`. Ensure agent is in "Prepared" state.
+
+**Issue**: Frontend can't connect to backend
+- **Solution**: Check CORS configuration in `SecurityConfig.java`. Verify `NEXT_PUBLIC_API_BASE_URL` is correct.
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Auth**: AWS Amplify (Cognito)
+- **State**: Zustand
+- **HTTP**: Axios
+
+### Backend
+- **Framework**: Spring Boot 3.2
+- **Language**: Java 17
+- **Auth**: OAuth2 Resource Server
+- **Database**: PostgreSQL 15 + DynamoDB
+- **ORM**: Spring Data JPA
+- **API Docs**: SpringDoc OpenAPI
+
+### Python Services
+- **Framework**: FastAPI
+- **Language**: Python 3.11
+- **AI/ML**: AWS Bedrock, MediaPipe
+- **HTTP**: Boto3, HTTPX
+- **Testing**: Pytest
+
+### Infrastructure
+- **Container**: Docker + EKS
+- **Orchestration**: Kubernetes + Helm
+- **GitOps**: Argo CD
+- **IaC**: Terraform
+- **CI/CD**: GitHub Actions
+
+### AWS Services
+- **Compute**: EKS (EC2)
+- **Auth**: Cognito
+- **AI**: Bedrock Agent + Knowledge Base
+- **Storage**: S3, DynamoDB, RDS (PostgreSQL)
+- **CDN**: CloudFront
+- **Streaming**: Kinesis Video Streams
+- **Monitoring**: CloudWatch
+- **Email**: SES
+
+## 📝 Contributing
+
+1. Create a feature branch from `main`
+2. Make your changes
+3. Write tests
+4. Update documentation
+5. Submit a pull request
+
+## 📄 License
+
+Proprietary - All rights reserved
+
+## 👥 Team
+
+Cloud Architecture Team - GYMPT Platform
+
+## 🔗 Links
+
+- **Production**: https://g2mpt.com
+- **API**: https://api.g2mpt.com
+- **Dev Environment**: https://dev.g2mpt.com
+- **Infrastructure**: [gympt-infra](../gympt-infra/README.md)
+- **GitOps**: [gympt-gitops](../gympt-gitops/README.md)
 
 ---
 
-## 📦 배포
-
-이 레포지토리는 **애플리케이션 코드**만 포함합니다. 인프라 및 배포 설정은 별도 레포지토리에서 관리됩니다:
-
-- **gympt-infra** - Terraform 인프라 코드 (VPC, EKS, RDS, etc.)
-- **gympt-gitops** - Kubernetes 매니페스트 및 Helm Charts (ArgoCD)
-
-### CI/CD 파이프라인
-
-**GitHub Actions Workflows:**
-- `.github/workflows/backend-api-ci.yml` - Backend API 빌드/배포
-- `.github/workflows/agent-service-ci.yml` - Agent Service 빌드/배포
-- `.github/workflows/posture-analysis-ci.yml` - Posture Analysis 빌드/배포
-- `.github/workflows/frontend-deploy.yml` - Frontend 배포 (S3/CloudFront)
-- `.github/workflows/lambda-deploy.yml` - Lambda 함수 배포
-
-**배포 프로세스:**
-1. 코드 푸시 → GitHub Actions 트리거
-2. 테스트 실행 → Docker 이미지 빌드
-3. ECR 푸시 → GitOps 레포 업데이트
-4. ArgoCD 자동 동기화 → EKS 배포
-
-상세 배포 절차는 [배포 가이드](docs/배포가이드.md) 참고
-
----
-
-## 🤝 기여하기
-
-이 프로젝트에 기여하고 싶으시다면 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고해주세요.
-
-### 개발 워크플로우
-
-1. 이슈 생성 또는 할당받기
-2. Feature 브랜치 생성 (`feature/my-feature`)
-3. 코드 작성 및 테스트
-4. PR 생성 (develop 브랜치로)
-5. 코드 리뷰
-6. Merge
-
-### 커밋 메시지 규칙
-
-```
-<type>(<scope>): <subject>
-
-feat(backend): 사용자 인증 API 추가
-fix(agent): Bedrock API 호출 오류 수정
-docs(readme): 설치 가이드 업데이트
-test(posture): 자세 분석 단위 테스트 추가
-```
-
----
-
-## 📊 프로젝트 상태
-
-- **버전:** 1.0.0
-- **상태:** Production Ready ✅
-- **테스트 커버리지:** 82%
-- **마지막 배포:** 2026-05-19
-
-### 구현 완료 서비스
-
-- ✅ Backend API (Spring Boot)
-- ✅ Agent Service (FastAPI + Bedrock)
-- ✅ Posture Analysis Service (MediaPipe)
-- ✅ Remediation Worker
-- ✅ Frontend (Next.js)
-- ✅ Lambda Functions (6개)
-
----
-
-## 📝 라이선스
-
-Proprietary - All Rights Reserved
-
-이 프로젝트는 비공개 소유 소프트웨어입니다. 무단 복제, 배포, 수정을 금지합니다.
-
----
-
-## 👥 팀
-
-**Platform Team**
-- Email: platform@gympt.com
-- Slack: #gympt-dev
-
----
-
-## 🔗 관련 레포지토리
-
-- [gympt-infra](https://github.com/YOUR_ORG/gympt-infra) - Terraform 인프라 코드
-- [gympt-gitops](https://github.com/YOUR_ORG/gympt-gitops) - Kubernetes 매니페스트
-
----
-
----
-
-## 📦 버전
-
-**Current Version:** `0.1.0`
-
-**Changelog:** [CHANGELOG.md](../CHANGELOG.md)
-
----
-
-**Last Updated:** 2026-05-19
+**Last Updated**: 2026-05-24
