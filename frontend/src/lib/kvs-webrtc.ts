@@ -2,7 +2,7 @@
  * AWS Kinesis Video Streams WebRTC Client
  */
 import { SignalingClient, Role } from 'amazon-kinesis-video-streams-webrtc';
-import { KinesisVideo, KinesisVideoSignalingChannels } from '@aws-sdk/client-kinesis-video';
+import { KinesisVideo } from '@aws-sdk/client-kinesis-video';
 import { KinesisVideoSignaling } from '@aws-sdk/client-kinesis-video-signaling';
 
 interface KVSConfig {
