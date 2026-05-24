@@ -27,18 +27,20 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Create non-root user first
+RUN useradd -m -u 1000 gympt
+
+# Copy Python dependencies from builder and change ownership
+COPY --from=builder --chown=gympt:gympt /root/.local /home/gympt/.local
 
 # Copy application code
-COPY src/ ./src/
+COPY --chown=gympt:gympt src/ ./src/
+
+# Switch to non-root user
+USER gympt
 
 # Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
-
-# Create non-root user
-RUN useradd -m -u 1000 gympt && chown -R gympt:gympt /app
-USER gympt
+ENV PATH=/home/gympt/.local/bin:$PATH
 
 # Expose port
 EXPOSE 8003
