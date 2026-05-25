@@ -20,7 +20,7 @@ spring:
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: update  # Auto-create/update schema (TODO: use Flyway migrations)
+      ddl-auto: validate  # Use Flyway for migrations
 
   data:
     redis:
@@ -32,8 +32,8 @@ spring:
         enabled: true
 
   flyway:
-    enabled: false  # Disabled until migration files are created
-    baseline-on-migrate: false
+    enabled: true
+    baseline-on-migrate: true
 
 logging:
   level:
