@@ -210,7 +210,7 @@ function StatCard({ icon, label, value, bgColor }: {
 
 function SessionCard({ session }: { session: any }) {
   return (
-    <Link href={`/report/${session.sessionId || session.reportId}`}>
+    <Link href={`/report/detail?sessionId=${session.sessionId || session.reportId}`}>
       <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-900">
