@@ -1,14 +1,11 @@
 import ReportPageClient from './ReportPageClient';
 
 // Required for static export with dynamic routes
+// Returns empty array to skip static generation
+// Client-side routing will handle all [sessionId] values
 export async function generateStaticParams() {
-  // Return empty array - client-side routing will handle dynamic routes
   return [];
 }
-
-// Mark as dynamic to ensure it's not statically generated
-export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
 
 // Server component wrapper
 export default function ReportPage() {
