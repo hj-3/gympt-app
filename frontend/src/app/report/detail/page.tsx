@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { apiClient } from '@/lib/api-client';
@@ -8,12 +8,11 @@ import {
   ChevronLeftIcon,
   TrophyIcon,
   FireIcon,
-  ClockIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-export default function ReportDetailPage() {
+function ReportDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
@@ -225,5 +224,17 @@ function ExerciseCard({ exercise }: { exercise: any }) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ReportDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ReportDetailContent />
+    </Suspense>
   );
 }
