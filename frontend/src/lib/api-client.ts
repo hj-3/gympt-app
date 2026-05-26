@@ -168,6 +168,12 @@ class ApiClient {
     });
     return response.data;
   }
+
+  // User API
+  async deleteAccount(userId: string): Promise<ApiResponse<void>> {
+    const response = await this.client.delete(`/api/v1/users/${userId}`);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

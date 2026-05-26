@@ -12,6 +12,7 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronRightIcon,
   SparklesIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import toast from 'react-hot-toast';
@@ -96,14 +97,20 @@ export default function ProfilePage() {
               icon={DocumentTextIcon}
               label="이용약관"
               onClick={() => router.push('/terms')}
+            />
+            <MenuItem
+              icon={TrashIcon}
+              label="회원탈퇴"
+              onClick={() => router.push('/profile/delete-account')}
               showDivider={false}
+              danger
             />
           </div>
 
           {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
-            className="w-full bg-white rounded-3xl p-5 shadow-sm flex items-center justify-center space-x-3 text-red-600 font-medium hover:bg-red-50 transition-colors"
+            className="w-full bg-white rounded-3xl p-5 shadow-sm flex items-center justify-center space-x-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
           >
             <ArrowRightOnRectangleIcon className="w-6 h-6" />
             <span>로그아웃</span>
@@ -125,11 +132,13 @@ function MenuItem({
   label,
   onClick,
   showDivider = true,
+  danger = false,
 }: {
   icon: any;
   label: string;
   onClick?: () => void;
   showDivider?: boolean;
+  danger?: boolean;
 }) {
   return (
     <>
@@ -138,8 +147,8 @@ function MenuItem({
         className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center space-x-3">
-          <Icon className="w-6 h-6 text-gray-600" />
-          <span className="text-base text-gray-900">{label}</span>
+          <Icon className={`w-6 h-6 ${danger ? 'text-red-600' : 'text-gray-600'}`} />
+          <span className={`text-base ${danger ? 'text-red-600' : 'text-gray-900'}`}>{label}</span>
         </div>
         <ChevronRightIcon className="w-5 h-5 text-gray-400" />
       </button>
