@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { deleteCognitoUser } from '@/lib/auth';
 import {
   ExclamationTriangleIcon,
   ArrowLeftIcon,
@@ -27,19 +28,30 @@ export default function DeleteAccountPage() {
     setIsDeleting(true);
 
     try {
+      // 1. Delete from backend database (soft delete)
       await apiClient.deleteCurrentAccount();
+
+      // 2. Delete Cognito user account
+      await deleteCognitoUser();
+
       toast.success('회원탈퇴가 완료되었습니다');
 
-      // Sign out from Cognito
+      // 3. Sign out and redirect
       await signOut();
 
-      // Redirect to home
       setTimeout(() => {
         router.push('/');
       }, 1500);
     } catch (error: any) {
       console.error('Failed to delete account:', error);
-      toast.error('회원탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요');
+
+      // More specific error messages
+      if (error.message?.includes('Cognito')) {
+        toast.error('Cognito 계정 삭제에 실패했습니다');
+      } else {
+        toast.error('회원탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요');
+      }
+
       setIsDeleting(false);
     }
   };

@@ -1,4 +1,4 @@
-import { signIn, signUp, signOut, getCurrentUser, fetchAuthSession, updatePassword } from 'aws-amplify/auth';
+import { signIn, signUp, signOut, getCurrentUser, fetchAuthSession, updatePassword, deleteUser } from 'aws-amplify/auth';
 
 export interface CognitoUser {
   userId: string;
@@ -95,6 +95,15 @@ export async function isAuthenticated(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function deleteCognitoUser(): Promise<void> {
+  try {
+    await deleteUser();
+  } catch (error) {
+    console.error('Failed to delete Cognito user:', error);
+    throw error;
   }
 }
 

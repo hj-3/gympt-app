@@ -35,8 +35,9 @@ public class BodyProfileController {
             @Valid @RequestBody BodyProfileRequest request,
             Authentication authentication
     ) {
+        // authentication.getName() returns DB user ID (UUID)
         UUID userId = UUID.fromString(authentication.getName());
-        log.info("POST /api/v1/body-profiles - userId: {}", userId);
+        log.info("POST /api/v1/body-profiles - userId from JWT: {}", userId);
         BodyProfileResponse response = bodyProfileService.createBodyProfile(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

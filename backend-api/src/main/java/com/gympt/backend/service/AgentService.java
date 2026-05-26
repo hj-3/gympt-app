@@ -35,8 +35,8 @@ public class AgentService {
             Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
             return response;
         } catch (Exception e) {
-            log.error("Failed to get workout recommendation from agent service", e);
-            throw new RuntimeException("Agent service unavailable", e);
+            log.error("Failed to get workout recommendation from agent service: {}", e.getMessage());
+            throw new RuntimeException("AI 코치 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해주세요.", e);
         }
     }
 
