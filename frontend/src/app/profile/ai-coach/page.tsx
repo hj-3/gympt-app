@@ -28,8 +28,8 @@ export default function AICoachPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    goal: 'WEIGHT_LOSS',
-    fitness_level: 'INTERMEDIATE',
+    goal: 'weight_loss',
+    fitness_level: 'intermediate',
     days_per_week: 3,
     equipment_available: ['dumbbells', 'barbell'],
     injuries_or_limitations: '',
@@ -148,10 +148,10 @@ export default function AICoachPage() {
                     onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="WEIGHT_LOSS">체중 감량</option>
-                    <option value="MUSCLE_GAIN">근육 증가</option>
-                    <option value="ENDURANCE">지구력 향상</option>
-                    <option value="GENERAL_FITNESS">전반적인 건강</option>
+                    <option value="weight_loss">체중 감량</option>
+                    <option value="muscle_gain">근육 증가</option>
+                    <option value="endurance">지구력 향상</option>
+                    <option value="general_fitness">전반적인 건강</option>
                   </select>
                 </div>
 
@@ -164,9 +164,9 @@ export default function AICoachPage() {
                     onChange={(e) => setFormData({ ...formData, fitness_level: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="BEGINNER">초급</option>
-                    <option value="INTERMEDIATE">중급</option>
-                    <option value="ADVANCED">고급</option>
+                    <option value="beginner">초급</option>
+                    <option value="intermediate">중급</option>
+                    <option value="advanced">고급</option>
                   </select>
                 </div>
 
