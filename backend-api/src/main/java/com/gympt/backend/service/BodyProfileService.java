@@ -32,6 +32,8 @@ public class BodyProfileService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
+        log.info("Found user: id={}, cognitoSub={}", user.getId(), user.getCognitoSub());
+
         BodyProfile profile = BodyProfile.builder()
             .user(user)
             .height(request.getHeight())
@@ -43,7 +45,8 @@ public class BodyProfileService {
             .build();
 
         profile = bodyProfileRepository.save(profile);
-        log.info("Body profile created with id: {}", profile.getId());
+        log.info("Body profile created with id: {}, user_id: {}, measurement_date: {}",
+            profile.getId(), profile.getUser().getId(), profile.getMeasurementDate());
 
         return BodyProfileResponse.from(profile);
     }
@@ -75,6 +78,12 @@ public class BodyProfileService {
             userId,
             PageRequest.of(0, 1)
         );
+
+        log.info("Found {} body profiles for user: {}", profiles.size(), userId);
+        if (!profiles.isEmpty()) {
+            log.info("Latest profile ID: {}, measurement date: {}",
+                profiles.get(0).getId(), profiles.get(0).getMeasurementDate());
+        }
 
         if (profiles.isEmpty()) {
             throw new ResourceNotFoundException("No body profile found for user: " + userId);
