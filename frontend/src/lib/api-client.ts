@@ -51,7 +51,7 @@ class ApiClient {
     return response.data;
   }
 
-  async getLatestBodyProfile(): Promise<ApiResponse<any>> {
+  async getLatestBodyProfile(): Promise<any> {
     const response = await this.client.get('/api/v1/body-profiles/latest');
     return response.data;
   }
