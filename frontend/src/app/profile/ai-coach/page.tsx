@@ -71,8 +71,8 @@ export default function AICoachPage() {
       console.log('Recommendation response:', response);
       if (response) {
         toast.success('새로운 추천을 받았습니다!');
-        // Agent service returns data directly, not wrapped in response.data
-        const recommendationText = (response as any).recommendations || (response as any).workout_plan || JSON.stringify(response);
+        // Agent service returns { recommendation: string, model_used: string, cached: boolean }
+        const recommendationText = (response as any).recommendation || JSON.stringify(response);
         const newRec: Recommendation = {
           title: '맞춤 운동 프로그램',
           content: recommendationText,

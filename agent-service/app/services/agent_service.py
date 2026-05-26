@@ -63,20 +63,21 @@ class AgentService:
                 workout_request
             )
 
-            # Call Bedrock
-            bedrock_response = await bedrock_client.invoke_model(
-                prompt=prompt,
-                max_tokens=2000,
-                temperature=0.7,
-                system="You are an expert personal trainer with deep knowledge of exercise science and program design."
+            # Call Bedrock Agent (not direct model invocation)
+            session_id = f"{user_id}-workout-{interaction_id[:8]}"
+            agent_response = await bedrock_client.invoke_agent(
+                session_id=session_id,
+                input_text=prompt,
+                enable_trace=False
             )
 
             # Build response
             result = {
-                "recommendation": bedrock_response["content"],
-                "model_used": bedrock_response["model"],
+                "recommendation": agent_response["completion"],
+                "model_used": "bedrock-agent",
                 "cached": False,
-                "interaction_id": interaction_id
+                "interaction_id": interaction_id,
+                "session_id": session_id
             }
 
             # Log to DynamoDB (non-blocking)
@@ -84,9 +85,9 @@ class AgentService:
                 user_id=user_id,
                 interaction_type="workout_recommend",
                 request_data=workout_request,
-                response_data={"recommendation": bedrock_response["content"]},
-                model_id=bedrock_response["model"],
-                tokens_used=bedrock_response.get("usage", {})
+                response_data={"recommendation": agent_response["completion"]},
+                model_id="bedrock-agent",
+                tokens_used={}
             )
 
             # Cache response
