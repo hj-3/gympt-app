@@ -68,13 +68,14 @@ export default function AICoachPage() {
         }),
       });
 
-      if (response && response.data) {
+      console.log('Recommendation response:', response);
+      if (response) {
         toast.success('새로운 추천을 받았습니다!');
-        // response.data에서 추천 내용 파싱
-        const recommendationText = (response.data as any).recommendations || (response.data as any).workout_plan || '';
+        // Agent service returns data directly, not wrapped in response.data
+        const recommendationText = (response as any).recommendations || (response as any).workout_plan || JSON.stringify(response);
         const newRec: Recommendation = {
           title: '맞춤 운동 프로그램',
-          content: recommendationText || '추천 내용을 불러오는 중...',
+          content: recommendationText,
           category: 'workout',
           createdAt: new Date().toISOString(),
         };
