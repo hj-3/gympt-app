@@ -45,7 +45,7 @@ export default function AddBodyDataPage() {
 
       await apiClient.createBodyProfile(data);
       toast.success('인바디 정보가 저장되었습니다');
-      router.back();
+      router.push('/profile/body');
     } catch (error: any) {
       console.error('Failed to create body profile:', error);
       toast.error(error.response?.data?.message || '저장에 실패했습니다');
