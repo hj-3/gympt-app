@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,16 +15,20 @@ import {
 import toast from 'react-hot-toast';
 
 interface Recommendation {
+  id?: string;
   title: string;
   content: string;
   category: string;
   createdAt: string;
+  goal?: string;
+  fitnessLevel?: string;
 }
 
 export default function AICoachPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,6 +38,34 @@ export default function AICoachPage() {
     equipment_available: ['dumbbells', 'barbell'],
     injuries_or_limitations: '',
   });
+
+  // Load recommendation history on mount
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
+
+  const loadRecommendations = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await apiClient.getWorkoutRecommendations(10);
+      if (response.data) {
+        const history = response.data.map((rec: any) => ({
+          id: rec.id,
+          title: '맞춤 운동 프로그램',
+          content: rec.recommendation,
+          category: 'workout',
+          createdAt: rec.createdAt,
+          goal: rec.goal,
+          fitnessLevel: rec.fitnessLevel,
+        }));
+        setRecommendations(history);
+      }
+    } catch (error) {
+      console.error('Failed to load recommendations:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleGetNewRecommendation = async () => {
     if (!user?.userId) {
@@ -71,15 +103,8 @@ export default function AICoachPage() {
       console.log('Recommendation response:', response);
       if (response) {
         toast.success('새로운 추천을 받았습니다!');
-        // Agent service returns { recommendation: string, model_used: string, cached: boolean }
-        const recommendationText = (response as any).recommendation || JSON.stringify(response);
-        const newRec: Recommendation = {
-          title: '맞춤 운동 프로그램',
-          content: recommendationText,
-          category: 'workout',
-          createdAt: new Date().toISOString(),
-        };
-        setRecommendations([newRec, ...recommendations]);
+        // Reload recommendations from database
+        await loadRecommendations();
         setShowForm(false);
       }
     } catch (error: any) {
@@ -227,18 +252,21 @@ export default function AICoachPage() {
             )}
 
             {/* Recommendations List */}
-            {recommendations.length > 0 && (
+            {loadingHistory ? (
+              <div className="bg-white rounded-3xl p-12 shadow-sm text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+                <p className="text-sm text-gray-500">추천 내역을 불러오는 중...</p>
+              </div>
+            ) : recommendations.length > 0 ? (
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-gray-900 px-1">
                   최근 추천 사항
                 </h3>
                 {recommendations.map((rec, index) => (
-                  <RecommendationCard key={index} recommendation={rec} />
+                  <RecommendationCard key={rec.id || index} recommendation={rec} />
                 ))}
               </div>
-            )}
-
-            {recommendations.length === 0 && !showForm && (
+            ) : !showForm ? (
               <div className="bg-white rounded-3xl p-12 shadow-sm text-center">
                 <SparklesIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -248,7 +276,7 @@ export default function AICoachPage() {
                   첫 AI 추천을 받아보세요
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

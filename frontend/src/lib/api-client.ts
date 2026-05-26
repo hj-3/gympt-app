@@ -169,6 +169,17 @@ class ApiClient {
     return response.data;
   }
 
+  async getWorkoutRecommendations(limit?: number): Promise<ApiResponse<any>> {
+    const params = limit ? { limit } : {};
+    const response = await this.client.get('/api/v1/agent/workout-recommendations', { params });
+    return response.data;
+  }
+
+  async getWorkoutRecommendationById(id: string): Promise<ApiResponse<any>> {
+    const response = await this.client.get(`/api/v1/agent/workout-recommendations/${id}`);
+    return response.data;
+  }
+
   // User API
   async getCurrentUserProfile(): Promise<ApiResponse<any>> {
     const response = await this.client.get('/api/v1/users/me');

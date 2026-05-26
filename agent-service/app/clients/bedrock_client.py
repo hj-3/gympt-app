@@ -90,11 +90,16 @@ class BedrockClient:
         enable_trace: bool = False
     ) -> Dict[str, Any]:
         """Invoke Bedrock Agent."""
-        
+
         if self.mock_enabled or not settings.bedrock_agent_id:
+            logger.warning("Using mock agent response - Bedrock Agent not configured")
             return self._mock_agent_response(input_text)
-        
+
         try:
+            logger.info(f"Invoking Bedrock Agent: agentId={settings.bedrock_agent_id}, "
+                       f"agentAliasId={settings.bedrock_agent_alias_id}, "
+                       f"sessionId={session_id}, region={self.region}")
+
             response = self.agent_client.invoke_agent(
                 agentId=settings.bedrock_agent_id,
                 agentAliasId=settings.bedrock_agent_alias_id,
@@ -102,7 +107,9 @@ class BedrockClient:
                 inputText=input_text,
                 enableTrace=enable_trace
             )
-            
+
+            logger.info(f"Bedrock Agent response received, processing stream...")
+
             # Process streaming response
             completion = ""
             for event in response.get('completion', []):
@@ -110,15 +117,17 @@ class BedrockClient:
                     chunk = event['chunk']
                     if 'bytes' in chunk:
                         completion += chunk['bytes'].decode('utf-8')
-            
+
+            logger.info(f"Bedrock Agent completion length: {len(completion)} characters")
+
             return {
                 "completion": completion,
                 "session_id": session_id,
                 "trace": response.get('trace') if enable_trace else None
             }
-            
+
         except Exception as e:
-            logger.error(f"Bedrock Agent invocation failed: {e}")
+            logger.error(f"Bedrock Agent invocation failed: {e}", exc_info=True)
             raise
     
     async def retrieve_from_knowledge_base(
