@@ -69,11 +69,6 @@ export default function ProfilePage() {
           {/* Menu Items */}
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-6">
             <MenuItem
-              icon={UserIcon}
-              label="내 정보"
-              onClick={() => router.push('/profile/info')}
-            />
-            <MenuItem
               icon={ChartBarIcon}
               label="인바디 정보"
               onClick={() => router.push('/profile/body')}
@@ -97,7 +92,12 @@ export default function ProfilePage() {
               icon={DocumentTextIcon}
               label="이용약관"
               onClick={() => router.push('/terms')}
+              showDivider={false}
             />
+          </div>
+
+          {/* Account Management */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-6">
             <MenuItem
               icon={TrashIcon}
               label="회원탈퇴"

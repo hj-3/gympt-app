@@ -26,7 +26,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.principal")
+    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
     @Operation(summary = "Get user profile")
     public ResponseEntity<UserProfileResponse> getProfile(@PathVariable UUID userId) {
         log.info("GET /api/v1/users/{} - userId: {}", userId, userId);
@@ -35,7 +35,7 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.principal")
+    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
     @Operation(summary = "Update user profile")
     public ResponseEntity<UserProfileResponse> updateProfile(
             @PathVariable UUID userId,
@@ -47,7 +47,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.principal")
+    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
     @Operation(summary = "Delete user account")
     public ResponseEntity<Void> deleteAccount(@PathVariable UUID userId) {
         log.info("DELETE /api/v1/users/{} - userId: {}", userId, userId);
