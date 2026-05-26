@@ -54,12 +54,12 @@ public class BodyProfileService {
 
         List<BodyProfile> profiles;
         if (limit != null && limit > 0) {
-            profiles = bodyProfileRepository.findByUserIdOrderByMeasurementDateDesc(
+            profiles = bodyProfileRepository.findByUser_IdOrderByMeasurementDateDesc(
                 userId,
                 PageRequest.of(0, limit)
             );
         } else {
-            profiles = bodyProfileRepository.findByUserIdOrderByMeasurementDateDesc(userId);
+            profiles = bodyProfileRepository.findByUser_IdOrderByMeasurementDateDesc(userId);
         }
 
         return profiles.stream()
@@ -71,7 +71,7 @@ public class BodyProfileService {
     public BodyProfileResponse getLatest(UUID userId) {
         log.info("Getting latest body profile for user: {}", userId);
 
-        List<BodyProfile> profiles = bodyProfileRepository.findByUserIdOrderByMeasurementDateDesc(
+        List<BodyProfile> profiles = bodyProfileRepository.findByUser_IdOrderByMeasurementDateDesc(
             userId,
             PageRequest.of(0, 1)
         );

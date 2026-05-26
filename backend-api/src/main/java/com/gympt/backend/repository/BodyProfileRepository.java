@@ -11,7 +11,7 @@ import java.util.UUID;
 @Repository
 public interface BodyProfileRepository extends JpaRepository<BodyProfile, UUID> {
 
-    List<BodyProfile> findByUserIdOrderByMeasurementDateDesc(UUID userId, Pageable pageable);
+    List<BodyProfile> findByUser_IdOrderByMeasurementDateDesc(UUID userId, Pageable pageable);
 
-    List<BodyProfile> findByUserIdOrderByMeasurementDateDesc(UUID userId);
+    List<BodyProfile> findByUser_IdOrderByMeasurementDateDesc(UUID userId);
 }
