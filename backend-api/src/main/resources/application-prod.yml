@@ -73,16 +73,16 @@ app:
 
   services:
     agent:
-      base-url: http://agent-service-prod-generic-worker:8000
+      base-url: http://agent-service-prod-generic-worker:8001
       timeout: 30s
     posture-analysis:
       base-url: http://posture-analysis-service-prod:8002
       timeout: 60s
     report:
-      base-url: http://report-service:8003
+      base-url: http://report-service-prod:8003
       timeout: 120s
     notification:
-      base-url: http://notification-service:8004
+      base-url: http://notification-service-prod:8004
       timeout: 10s
 
   cors:
