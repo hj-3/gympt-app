@@ -56,7 +56,7 @@ class ApiClient {
     return response.data;
   }
 
-  async getBodyProfileHistory(limit?: number): Promise<ApiResponse<any>> {
+  async getBodyProfileHistory(limit?: number): Promise<any> {
     const params = limit ? { limit } : {};
     const response = await this.client.get('/api/v1/body-profiles/history', { params });
     return response.data;
