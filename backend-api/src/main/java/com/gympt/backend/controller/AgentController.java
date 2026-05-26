@@ -4,8 +4,7 @@ import com.gympt.backend.service.AgentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -20,10 +19,11 @@ public class AgentController {
 
     @PostMapping("/workout-recommendation")
     public ResponseEntity<Map<String, Object>> getWorkoutRecommendation(
-            @AuthenticationPrincipal UserDetails userDetails,
+            Authentication authentication,
             @RequestBody Map<String, Object> request) {
 
-        log.info("Workout recommendation request from user: {}", userDetails.getUsername());
+        String userId = authentication.getName(); // DB user UUID
+        log.info("Workout recommendation request from user: {}", userId);
 
         Map<String, Object> response = agentService.getWorkoutRecommendation(request);
         return ResponseEntity.ok(response);
@@ -31,10 +31,11 @@ public class AgentController {
 
     @PostMapping("/posture-feedback")
     public ResponseEntity<Map<String, Object>> getPostureFeedback(
-            @AuthenticationPrincipal UserDetails userDetails,
+            Authentication authentication,
             @RequestBody Map<String, Object> request) {
 
-        log.info("Posture feedback request from user: {}", userDetails.getUsername());
+        String userId = authentication.getName(); // DB user UUID
+        log.info("Posture feedback request from user: {}", userId);
 
         Map<String, Object> response = agentService.getPostureFeedback(request);
         return ResponseEntity.ok(response);
