@@ -170,8 +170,18 @@ class ApiClient {
   }
 
   // User API
-  async deleteAccount(userId: string): Promise<ApiResponse<void>> {
-    const response = await this.client.delete(`/api/v1/users/${userId}`);
+  async getCurrentUserProfile(): Promise<ApiResponse<any>> {
+    const response = await this.client.get('/api/v1/users/me');
+    return response.data;
+  }
+
+  async updateCurrentUserProfile(data: any): Promise<ApiResponse<any>> {
+    const response = await this.client.put('/api/v1/users/me', data);
+    return response.data;
+  }
+
+  async deleteCurrentAccount(): Promise<ApiResponse<void>> {
+    const response = await this.client.delete('/api/v1/users/me');
     return response.data;
   }
 }

@@ -96,17 +96,6 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Account Management */}
-          <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-6">
-            <MenuItem
-              icon={TrashIcon}
-              label="회원탈퇴"
-              onClick={() => router.push('/profile/delete-account')}
-              showDivider={false}
-              danger
-            />
-          </div>
-
           {/* Sign Out Button */}
           <button
             onClick={handleSignOut}

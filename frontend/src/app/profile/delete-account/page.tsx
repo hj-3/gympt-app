@@ -19,11 +19,6 @@ export default function DeleteAccountPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const handleDeleteAccount = async () => {
-    if (!user?.userId) {
-      toast.error('사용자 정보를 찾을 수 없습니다');
-      return;
-    }
-
     if (confirmText !== '회원탈퇴') {
       toast.error('확인 문구를 정확히 입력해주세요');
       return;
@@ -32,7 +27,7 @@ export default function DeleteAccountPage() {
     setIsDeleting(true);
 
     try {
-      await apiClient.deleteAccount(user.userId);
+      await apiClient.deleteCurrentAccount();
       toast.success('회원탈퇴가 완료되었습니다');
 
       // Sign out from Cognito

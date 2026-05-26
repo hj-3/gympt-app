@@ -55,20 +55,7 @@ export default function ProfileInfoPage() {
             {/* Account Actions */}
             <div className="space-y-3 pt-4">
               <button
-                onClick={() => router.push('/profile/change-password')}
-                className="w-full bg-white rounded-2xl p-4 shadow-sm text-left hover:bg-gray-50 transition-colors"
-              >
-                <span className="text-base font-medium text-gray-900">
-                  비밀번호 변경
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm('정말로 회원 탈퇴하시겠습니까?\n\n모든 운동 기록과 데이터가 삭제됩니다.')) {
-                    // TODO: Implement account deletion API
-                    alert('회원 탈퇴 기능은 준비 중입니다.');
-                  }
-                }}
+                onClick={() => router.push('/profile/delete-account')}
                 className="w-full bg-white rounded-2xl p-4 shadow-sm text-left hover:bg-red-50 transition-colors"
               >
                 <span className="text-base font-medium text-red-600">

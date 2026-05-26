@@ -10,7 +10,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -25,33 +26,45 @@ public class UserController {
 
     private final UserService userService;
 
+    @GetMapping("/me")
+    @Operation(summary = "Get current user profile")
+    public ResponseEntity<UserProfileResponse> getCurrentUserProfile(@AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        log.info("GET /api/v1/users/me - userId from JWT: {}", userId);
+        UserProfileResponse response = userService.getProfileByCognitoSub(jwt.getSubject());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
-    @Operation(summary = "Get user profile")
-    public ResponseEntity<UserProfileResponse> getProfile(@PathVariable UUID userId) {
-        log.info("GET /api/v1/users/{} - userId: {}", userId, userId);
+    @Operation(summary = "Get user profile by ID")
+    public ResponseEntity<UserProfileResponse> getProfile(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        log.info("GET /api/v1/users/{} - requesterId: {}", userId, requesterId);
         UserProfileResponse response = userService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
-    @Operation(summary = "Update user profile")
-    public ResponseEntity<UserProfileResponse> updateProfile(
-            @PathVariable UUID userId,
+    @PutMapping("/me")
+    @Operation(summary = "Update current user profile")
+    public ResponseEntity<UserProfileResponse> updateCurrentUserProfile(
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UserProfileRequest request
     ) {
-        log.info("PUT /api/v1/users/{} - userId: {}", userId, userId);
-        UserProfileResponse response = userService.updateProfile(userId, request);
+        String cognitoSub = jwt.getSubject();
+        log.info("PUT /api/v1/users/me - cognitoSub: {}", cognitoSub);
+        UserProfileResponse response = userService.updateProfileByCognitoSub(cognitoSub, request);
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('USER') and #userId.toString() == authentication.name")
-    @Operation(summary = "Delete user account")
-    public ResponseEntity<Void> deleteAccount(@PathVariable UUID userId) {
-        log.info("DELETE /api/v1/users/{} - userId: {}", userId, userId);
-        userService.deleteAccount(userId);
+    @DeleteMapping("/me")
+    @Operation(summary = "Delete current user account")
+    public ResponseEntity<Void> deleteCurrentAccount(@AuthenticationPrincipal Jwt jwt) {
+        String cognitoSub = jwt.getSubject();
+        log.info("DELETE /api/v1/users/me - cognitoSub: {}", cognitoSub);
+        userService.deleteAccountByCognitoSub(cognitoSub);
         return ResponseEntity.noContent().build();
     }
 }

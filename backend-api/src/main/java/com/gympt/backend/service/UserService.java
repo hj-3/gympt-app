@@ -66,9 +66,56 @@ public class UserService {
         user.setStatus(User.UserStatus.DELETED);
         userRepository.save(user);
 
-        // Note: Cognito tokens are revoked through Cognito User Pool
-        // No need to manage refresh tokens in DB anymore
-
         log.info("Account deleted for user: {}", userId);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileResponse getProfileByCognitoSub(String cognitoSub) {
+        log.info("Getting profile by Cognito sub: {}", cognitoSub);
+
+        User user = userRepository.findByCognitoSub(cognitoSub)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "cognitoSub", cognitoSub));
+
+        return UserProfileResponse.from(user);
+    }
+
+    @Transactional
+    public UserProfileResponse updateProfileByCognitoSub(String cognitoSub, UserProfileRequest request) {
+        log.info("Updating profile by Cognito sub: {}", cognitoSub);
+
+        User user = userRepository.findByCognitoSub(cognitoSub)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "cognitoSub", cognitoSub));
+
+        if (request.getName() != null) {
+            user.setName(request.getName());
+        }
+        if (request.getAge() != null) {
+            user.setAge(request.getAge());
+        }
+        if (request.getGender() != null) {
+            user.setGender(request.getGender());
+        }
+        if (request.getFitnessLevel() != null) {
+            user.setFitnessLevel(request.getFitnessLevel());
+        }
+
+        user = userRepository.save(user);
+        log.info("Profile updated successfully for Cognito sub: {}", cognitoSub);
+
+        return UserProfileResponse.from(user);
+    }
+
+    @Transactional
+    public void deleteAccountByCognitoSub(String cognitoSub) {
+        log.info("Deleting account by Cognito sub: {}", cognitoSub);
+
+        User user = userRepository.findByCognitoSub(cognitoSub)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "cognitoSub", cognitoSub));
+
+        // Soft delete - mark as deleted
+        user.setStatus(User.UserStatus.DELETED);
+        userRepository.save(user);
+
+        log.info("Account deleted for Cognito sub: {}", cognitoSub);
     }
 }
