@@ -74,7 +74,7 @@ app:
   services:
     agent:
       base-url: http://agent-service-prod-generic-worker:8001
-      timeout: 30s
+      timeout: 60s
     posture-analysis:
       base-url: http://posture-analysis-service-prod:8002
       timeout: 60s
