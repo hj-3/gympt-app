@@ -2,7 +2,7 @@ name: Agent Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [dev, main]
     paths: ['agent-service/**', '.github/workflows/agent-service-ci.yml']
 
 env:

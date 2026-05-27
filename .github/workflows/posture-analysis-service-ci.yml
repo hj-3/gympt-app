@@ -2,7 +2,7 @@ name: Posture Analysis Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [dev, main]
     paths: ['posture-analysis-service/**', '.github/workflows/posture-analysis-service-ci.yml']
 
 env:

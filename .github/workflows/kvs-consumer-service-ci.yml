@@ -3,7 +3,7 @@ name: KVS Consumer Service CI/CD
 on:
   push:
     branches:
-      - develop
+      - dev
       - main
     paths:
       - 'kvs-consumer-service/**'

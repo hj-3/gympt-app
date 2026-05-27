@@ -3,7 +3,7 @@ name: Report Service CI/CD
 on:
   push:
     branches:
-      - develop
+      - dev
       - main
     paths:
       - 'report-service/**'
