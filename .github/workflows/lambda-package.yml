@@ -104,9 +104,9 @@ jobs:
             s3://${{ steps.bucket.outputs.bucket }}/${{ matrix.lambda }}.zip
 
       - name: Update Lambda function (optional)
-        if: vars.AUTO_UPDATE_LAMBDA == 'true'
+        if: ${{ vars.AUTO_UPDATE_LAMBDA == 'true' }}
         run: |
           aws lambda update-function-code \
             --function-name gympt-${{ steps.env.outputs.environment }}-${{ matrix.lambda }} \
-            --s3-bucket ${{ steps.env.outputs.bucket }} \
-            --s3-key lambdas/${{ matrix.lambda }}/lambda-${{ matrix.lambda }}-${GITHUB_SHA:0:7}.zip
+            --s3-bucket ${{ steps.bucket.outputs.bucket }} \
+            --s3-key ${{ matrix.lambda }}.zip
