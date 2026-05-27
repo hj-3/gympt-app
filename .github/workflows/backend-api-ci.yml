@@ -108,6 +108,10 @@ jobs:
         with:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_PAT }}
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
       - name: Update image tag
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
@@ -116,7 +120,7 @@ jobs:
           VALUES_FILE="charts/backend-api/values-${ENVIRONMENT}.yaml"
 
           echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
-          sed -i "s/tag: \".*\"/tag: \"${IMAGE_TAG}\"/" ${VALUES_FILE}
+          yq -i '.image.tag = strenv(IMAGE_TAG)' "${VALUES_FILE}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
