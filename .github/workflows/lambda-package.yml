@@ -2,7 +2,7 @@ name: Lambda Package and Deploy
 
 on:
   push:
-    branches: [develop, main]
+    branches: [dev, main]
     paths: ['lambdas/**', '.github/workflows/lambda-package.yml']
   workflow_dispatch:  # 수동 실행 가능
 
@@ -41,7 +41,7 @@ jobs:
   package-and-upload:
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     permissions:
       id-token: write
       contents: read
@@ -86,8 +86,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ steps.env.outputs.environment == 'prod' && vars.AWS_ROLE_PROD || vars.AWS_ROLE_DEV }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get S3 bucket
@@ -105,9 +104,9 @@ jobs:
             s3://${{ steps.bucket.outputs.bucket }}/${{ matrix.lambda }}.zip
 
       - name: Update Lambda function (optional)
-        if: vars.AUTO_UPDATE_LAMBDA == 'true'
+        if: ${{ vars.AUTO_UPDATE_LAMBDA == 'true' }}
         run: |
           aws lambda update-function-code \
             --function-name gympt-${{ steps.env.outputs.environment }}-${{ matrix.lambda }} \
-            --s3-bucket ${{ steps.env.outputs.bucket }} \
-            --s3-key lambdas/${{ matrix.lambda }}/lambda-${{ matrix.lambda }}-${GITHUB_SHA:0:7}.zip
+            --s3-bucket ${{ steps.bucket.outputs.bucket }} \
+            --s3-key ${{ matrix.lambda }}.zip
