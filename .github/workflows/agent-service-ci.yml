@@ -4,6 +4,9 @@ on:
   push:
     branches: [dev, main]
     paths: ['agent-service/**', '.github/workflows/agent-service-ci.yml']
+  pull_request:
+    paths: ['agent-service/**', '.github/workflows/agent-service-ci.yml']
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.12'
@@ -41,7 +44,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     permissions:
       id-token: write
       contents: read
@@ -81,7 +84,7 @@ jobs:
   update-gitops:
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
