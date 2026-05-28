@@ -108,7 +108,7 @@ class BedrockClient:
                 enableTrace=enable_trace
             )
 
-            logger.info(f"Bedrock Agent response received, processing stream...")
+            logger.info("Bedrock Agent response received, processing stream...")
 
             # Process streaming response
             completion = ""

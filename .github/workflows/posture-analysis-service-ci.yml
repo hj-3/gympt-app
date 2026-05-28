@@ -98,10 +98,15 @@ jobs:
           echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
           yq -i '.image.tag = strenv(IMAGE_TAG)' "${VALUES_FILE}"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ${VALUES_FILE}
-          git commit -m "ci: Update posture-analysis-service ${ENVIRONMENT} image to ${IMAGE_TAG}" \
-            -m "Triggered by: ${{ github.sha }}" \
-            -m "Environment: ${ENVIRONMENT}"
-          git push
+      - name: Create GitOps update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITOPS_PAT }}
+          branch: ci/update-posture-analysis-service-${{ needs.build-and-push.outputs.environment }}-${{ needs.build-and-push.outputs.image-tag }}
+          delete-branch: true
+          commit-message: "ci: update posture-analysis-service ${{ needs.build-and-push.outputs.environment }} image to ${{ needs.build-and-push.outputs.image-tag }}"
+          title: "ci: update posture-analysis-service ${{ needs.build-and-push.outputs.environment }} image"
+          body: |
+            ## Summary
+            - Update posture-analysis-service ${{ needs.build-and-push.outputs.environment }} image tag to `${{ needs.build-and-push.outputs.image-tag }}`
+            - Triggered by hj-3/gympt-app@${{ github.sha }}
