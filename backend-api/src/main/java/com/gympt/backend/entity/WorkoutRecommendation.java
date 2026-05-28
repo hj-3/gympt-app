@@ -1,5 +1,6 @@
 package com.gympt.backend.entity;
 
+import com.gympt.backend.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
