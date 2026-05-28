@@ -1,12 +1,12 @@
 package com.gympt.backend.service;
 
 import com.gympt.backend.dto.WorkoutRecommendationDto;
-import com.gympt.backend.entity.BodyProfile;
-import com.gympt.backend.entity.User;
+import com.gympt.backend.domain.BodyProfile;
 import com.gympt.backend.entity.WorkoutRecommendation;
 import com.gympt.backend.repository.BodyProfileRepository;
-import com.gympt.backend.repository.UserRepository;
 import com.gympt.backend.repository.WorkoutRecommendationRepository;
+import com.gympt.backend.user.User;
+import com.gympt.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
