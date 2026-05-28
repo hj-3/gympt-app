@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -84,10 +85,10 @@ public class AgentService {
                         .injuriesOrLimitations((String) request.get("injuries_or_limitations"))
                         .modelUsed((String) response.get("model_used"))
                         .sessionId((String) response.get("session_id"))
-                        .height(bodyProfile != null ? bodyProfile.getHeight() : null)
-                        .weight(bodyProfile != null ? bodyProfile.getWeight() : null)
-                        .bodyFat(bodyProfile != null ? bodyProfile.getBodyFat() : null)
-                        .muscleMass(bodyProfile != null ? bodyProfile.getMuscleMass() : null)
+                        .height(bodyProfile != null ? toDouble(bodyProfile.getHeight()) : null)
+                        .weight(bodyProfile != null ? toDouble(bodyProfile.getWeight()) : null)
+                        .bodyFat(bodyProfile != null ? toDouble(bodyProfile.getBodyFat()) : null)
+                        .muscleMass(bodyProfile != null ? toDouble(bodyProfile.getMuscleMass()) : null)
                         .build();
 
                 WorkoutRecommendation saved = workoutRecommendationRepository.save(recommendation);
@@ -144,6 +145,10 @@ public class AgentService {
                 .createdAt(recommendation.getCreatedAt())
                 .updatedAt(recommendation.getUpdatedAt())
                 .build();
+    }
+
+    private Double toDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : null;
     }
 
     public Map<String, Object> getPostureFeedback(Map<String, Object> request) {
