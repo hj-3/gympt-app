@@ -1,6 +1,6 @@
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from app.config import settings
 from app.logger import setup_logger
 from app.models import RemediationResult
@@ -227,7 +227,7 @@ class KubernetesClient:
                     action_type="patch_deployment",
                     namespace=namespace,
                     target=deployment,
-                    message=f"DRY RUN: Would apply patch to deployment",
+                    message="DRY RUN: Would apply patch to deployment",
                     dry_run=True
                 )
 
