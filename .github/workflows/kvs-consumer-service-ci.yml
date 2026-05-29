@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'kvs-consumer-service/**'
       - '.github/workflows/kvs-consumer-service-ci.yml'
