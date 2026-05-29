@@ -64,7 +64,7 @@ class RemediationEngine:
                     action_type=action.action_type,
                     namespace=action.namespace,
                     target=action.target,
-                    message=f"Action blocked by cooldown period",
+                    message="Action blocked by cooldown period",
                     error="Action is in cooldown"
                 )
                 remediation_cooldown_blocks.labels(
@@ -84,7 +84,7 @@ class RemediationEngine:
                     action_type=action.action_type,
                     namespace=action.namespace,
                     target=action.target,
-                    message=f"Action blocked by rate limit",
+                    message="Action blocked by rate limit",
                     error="Rate limit exceeded"
                 )
                 remediation_rate_limit_blocks.labels(

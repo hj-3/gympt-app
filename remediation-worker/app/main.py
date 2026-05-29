@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import PlainTextResponse
 from app.config import settings
 from app.logger import setup_logger
 from app.models import (

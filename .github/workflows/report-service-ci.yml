@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'report-service/**'
       - '.github/workflows/report-service-ci.yml'
