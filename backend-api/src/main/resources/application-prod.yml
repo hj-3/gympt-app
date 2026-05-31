@@ -73,7 +73,7 @@ app:
 
   services:
     agent:
-      base-url: http://agent-service-prod-generic-worker:8001
+      base-url: http://agent-service.gympt-prod.svc.cluster.local:8000
       timeout: 60s
     posture-analysis:
       base-url: http://posture-analysis-service-prod:8002

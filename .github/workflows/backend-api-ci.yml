@@ -61,7 +61,7 @@ jobs:
       - name: Set variables
         id: vars
         run: |
-          IMAGE_TAG="${{ github.run_number }}${GITHUB_SHA:0:7}"
+          IMAGE_TAG="${{ github.run_number }}-${GITHUB_SHA:0:7}"
           echo "short-sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
           echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
       - name: Determine environment

@@ -1,6 +1,7 @@
 import aioboto3
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from app.config import settings
 
@@ -108,7 +109,7 @@ class AsyncSQSClient:
             "user_id": user_id,
             "exercise_name": exercise_name,
             "frame_data": frame_data,
-            "timestamp": settings.app_env
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         message_attributes = {
