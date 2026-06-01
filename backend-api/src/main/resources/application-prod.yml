@@ -86,7 +86,7 @@ app:
       timeout: 10s
 
   cors:
-    allowed-origins: https://g2mpt.com,https://www.g2mpt.com,https://api.g2mpt.com
+    allowed-origins: ${CORS_ORIGINS:https://g2mpt.com,https://www.g2mpt.com}
     allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
     allowed-headers: "*"
     allow-credentials: true

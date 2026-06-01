@@ -79,8 +79,7 @@ export default function AICoachPage() {
       // Load body profile to enhance recommendation
       let bodyProfile = null;
       try {
-        const bodyResponse = await apiClient.getLatestBodyProfile();
-        bodyProfile = bodyResponse.data;
+        bodyProfile = await apiClient.getLatestBodyProfile() as any;
       } catch (err) {
         console.log('No body profile found, proceeding without it');
       }
