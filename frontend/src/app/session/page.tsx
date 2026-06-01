@@ -145,8 +145,8 @@ export default function SessionPage() {
       // 루틴이 없어도 자유 운동 모드로 세션 시작 가능
       let routineId: string | null = null;
       try {
-        const routineResponse = await apiClient.getTodayRoutine(user.userId);
-        routineId = routineResponse.data?.routineId ?? null;
+        const routineResponse = await apiClient.getTodayRoutine(user.userId) as any;
+        routineId = routineResponse?.routineId ?? null;
       } catch {
         // 루틴 없음 - 자유 운동으로 진행
       }
