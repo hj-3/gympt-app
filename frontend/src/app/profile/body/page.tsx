@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { ChevronLeftIcon, ChartBarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api-client';
-import toast from 'react-hot-toast';
 
 interface BodyData {
   id: string;
@@ -26,17 +25,17 @@ export default function BodyInfoPage() {
   }, []);
 
   const loadLatestBodyProfile = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await apiClient.getLatestBodyProfile();
-      console.log('Body profile response:', response);
-      if (response) {
-        setBodyData(response);
-      }
-    } catch (error: any) {
-      if (error.response?.status !== 404) {
-        console.error('Failed to load body profile:', error);
-        toast.error('인바디 정보를 불러오는데 실패했습니다');
+      if (response) setBodyData(response);
+    } catch {
+      // API unavailable → try localStorage
+      try {
+        const local = localStorage.getItem('gympt_body_latest');
+        if (local) setBodyData(JSON.parse(local));
+      } catch {
+        // no local data either
       }
     } finally {
       setLoading(false);
@@ -44,19 +43,17 @@ export default function BodyInfoPage() {
   };
 
   const calculateBMI = (weight: number, height: number) => {
-    const heightInMeters = height / 100;
-    return (weight / (heightInMeters * heightInMeters)).toFixed(1);
+    const h = height / 100;
+    return (weight / (h * h)).toFixed(1);
   };
 
-  const calculatePercentage = (value: number, max: number) => {
-    return Math.min((value / max) * 100, 100);
-  };
+  const calculatePercentage = (value: number, max: number) => Math.min((value / max) * 100, 100);
 
   if (loading) {
     return (
       <ProtectedRoute>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
         </div>
       </ProtectedRoute>
     );
@@ -108,9 +105,7 @@ export default function BodyInfoPage() {
 
                 {/* Detailed Metrics */}
                 <div className="bg-white rounded-3xl p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    상세 지표
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">상세 지표</h3>
                   <div className="space-y-4">
                     <MetricRow
                       label="키"
@@ -142,21 +137,24 @@ export default function BodyInfoPage() {
                   onClick={() => router.push('/profile/body/history')}
                   className="w-full bg-white rounded-2xl p-4 shadow-sm hover:bg-gray-50 transition-colors"
                 >
-                  <span className="text-base font-medium text-gray-900">
-                    측정 이력 보기
-                  </span>
+                  <span className="text-base font-medium text-gray-900">측정 이력 보기</span>
+                </button>
+
+                {/* Add New Button */}
+                <button
+                  onClick={() => router.push('/profile/body/add')}
+                  className="w-full bg-blue-600 text-white rounded-2xl p-4 shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <PlusIcon className="w-5 h-5" />
+                  <span className="font-medium">새 측정 데이터 추가</span>
                 </button>
               </>
             ) : (
               // Empty State
               <div className="bg-white rounded-3xl p-12 shadow-sm text-center">
                 <ChartBarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  인바디 정보가 없습니다
-                </h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  첫 인바디 측정 데이터를 입력하세요
-                </p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">인바디 정보가 없습니다</h3>
+                <p className="text-sm text-gray-500 mb-6">첫 인바디 측정 데이터를 입력하세요</p>
                 <button
                   onClick={() => router.push('/profile/body/add')}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors"
@@ -165,17 +163,6 @@ export default function BodyInfoPage() {
                   <span>측정 데이터 추가</span>
                 </button>
               </div>
-            )}
-
-            {/* Add New Button */}
-            {bodyData && (
-              <button
-                onClick={() => router.push('/profile/body/add')}
-                className="w-full bg-blue-600 text-white rounded-2xl p-4 shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <PlusIcon className="w-5 h-5" />
-                <span className="font-medium">새 측정 데이터 추가</span>
-              </button>
             )}
 
             {/* Info */}

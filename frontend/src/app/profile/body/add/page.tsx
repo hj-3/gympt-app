@@ -28,27 +28,31 @@ export default function AddBodyDataPage() {
     }
 
     setLoading(true);
+    const data: any = {
+      height: parseFloat(formData.height),
+      weight: parseFloat(formData.weight),
+      measurementDate: formData.measurementDate,
+    };
+    if (formData.bodyFat) data.bodyFat = parseFloat(formData.bodyFat);
+    if (formData.muscleMass) data.muscleMass = parseFloat(formData.muscleMass);
+
     try {
-      const data: any = {
-        height: parseFloat(formData.height),
-        weight: parseFloat(formData.weight),
-        measurementDate: formData.measurementDate,
-      };
-
-      if (formData.bodyFat) {
-        data.bodyFat = parseFloat(formData.bodyFat);
-      }
-
-      if (formData.muscleMass) {
-        data.muscleMass = parseFloat(formData.muscleMass);
-      }
-
       await apiClient.createBodyProfile(data);
       toast.success('인바디 정보가 저장되었습니다');
       router.push('/profile/body');
-    } catch (error: any) {
-      console.error('Failed to create body profile:', error);
-      toast.error(error.response?.data?.message || '저장에 실패했습니다');
+    } catch {
+      // API unavailable → save to localStorage for demo
+      try {
+        const entry = { ...data, id: `local-${Date.now()}` };
+        const existing: any[] = JSON.parse(localStorage.getItem('gympt_body_history') || '[]');
+        existing.unshift(entry);
+        localStorage.setItem('gympt_body_history', JSON.stringify(existing));
+        localStorage.setItem('gympt_body_latest', JSON.stringify(entry));
+        toast.success('인바디 정보가 저장되었습니다');
+        router.push('/profile/body');
+      } catch {
+        toast.error('저장에 실패했습니다');
+      }
     } finally {
       setLoading(false);
     }
@@ -82,9 +86,7 @@ export default function AddBodyDataPage() {
                   <input
                     type="date"
                     value={formData.measurementDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, measurementDate: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, measurementDate: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
@@ -100,9 +102,7 @@ export default function AddBodyDataPage() {
                     min="50"
                     max="300"
                     value={formData.height}
-                    onChange={(e) =>
-                      setFormData({ ...formData, height: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                     placeholder="예: 175.0"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
@@ -119,9 +119,7 @@ export default function AddBodyDataPage() {
                     min="20"
                     max="500"
                     value={formData.weight}
-                    onChange={(e) =>
-                      setFormData({ ...formData, weight: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                     placeholder="예: 70.5"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
@@ -138,9 +136,7 @@ export default function AddBodyDataPage() {
                     min="0"
                     max="100"
                     value={formData.bodyFat}
-                    onChange={(e) =>
-                      setFormData({ ...formData, bodyFat: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, bodyFat: e.target.value })}
                     placeholder="예: 15.2"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -155,9 +151,7 @@ export default function AddBodyDataPage() {
                     step="0.1"
                     min="0"
                     value={formData.muscleMass}
-                    onChange={(e) =>
-                      setFormData({ ...formData, muscleMass: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, muscleMass: e.target.value })}
                     placeholder="예: 32.4"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />

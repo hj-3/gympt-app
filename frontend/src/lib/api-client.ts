@@ -35,12 +35,15 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         if (error.response?.status === 401) {
-          // 하드 리다이렉트 대신 Zustand 상태를 초기화하고 Next.js router로 이동
-          // window.location.href 사용 시 앱 상태 전체가 날아가는 부작용 방지
+          // auth 상태만 초기화 — 하드 리다이렉트 제거
+          // ProtectedRoute가 user=null을 감지해 /login으로 이동하도록 위임
           if (typeof window !== 'undefined') {
-            const { useAuthStore } = await import('./store');
-            useAuthStore.getState().logout().catch(() => {});
-            window.location.replace('/login');
+            try {
+              const { useAuthStore } = await import('./store');
+              await useAuthStore.getState().logout();
+            } catch {
+              // ignore
+            }
           }
         }
         return Promise.reject(error);
