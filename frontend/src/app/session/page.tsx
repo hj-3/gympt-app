@@ -12,7 +12,6 @@ import {
   VideoCameraIcon,
   PlayIcon,
   StopIcon,
-  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -33,7 +32,7 @@ export default function SessionPage() {
   const [currentExercise, setCurrentExercise] = useState<string>('squat');
   const [repCount, setRepCount] = useState<number>(0);
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
-  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+  const [landmarks] = useState<Landmark[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
   useEffect(() => {
@@ -128,19 +127,6 @@ export default function SessionPage() {
         rep_count: repCount,
       });
 
-      // Convert angles to landmarks for visualization (simplified)
-      // In production, backend should return actual landmarks
-      if (response.landmarks_count > 0) {
-        // Placeholder: generate dummy landmarks from angles
-        // Real implementation should get landmarks from backend
-        const dummyLandmarks: Landmark[] = Array.from({ length: 33 }, (_, i) => ({
-          x: Math.random(),
-          y: Math.random(),
-          z: 0,
-          visibility: 0.9,
-        }));
-        setLandmarks(dummyLandmarks);
-      }
     } catch (error) {
       console.error('Frame analysis error:', error);
       // Don't show error to user for every failed frame
@@ -156,15 +142,16 @@ export default function SessionPage() {
     }
 
     try {
-      const routineResponse = await apiClient.getTodayRoutine(user.userId);
-      const routine = routineResponse.data;
-
-      if (!routine) {
-        toast.error('오늘의 운동 루틴이 없습니다');
-        return;
+      // 루틴이 없어도 자유 운동 모드로 세션 시작 가능
+      let routineId: string | null = null;
+      try {
+        const routineResponse = await apiClient.getTodayRoutine(user.userId);
+        routineId = routineResponse.data?.routineId ?? null;
+      } catch {
+        // 루틴 없음 - 자유 운동으로 진행
       }
 
-      const sessionResponse = await apiClient.startSession(user.userId, routine.routineId);
+      const sessionResponse = await apiClient.startSession(user.userId, routineId ?? 'free-workout');
       const session = sessionResponse.data;
 
       setSessionId(session.sessionId);
@@ -178,11 +165,8 @@ export default function SessionPage() {
 
     } catch (error: any) {
       console.error('Failed to start session:', error);
-      if (error.response?.status === 404) {
-        toast.error('운동 루틴이 설정되지 않았습니다');
-      } else {
-        toast.error('세션 시작에 실패했습니다');
-      }
+      toast.error('세션 시작에 실패했습니다');
+      setSessionState('ready');
     }
   };
 
@@ -205,7 +189,7 @@ export default function SessionPage() {
       }
 
       setTimeout(() => {
-        router.push(`/report/${sessionId}`);
+        router.push(`/report/detail?sessionId=${sessionId}`);
       }, 1500);
     } catch (error) {
       console.error('Failed to complete session:', error);
@@ -292,14 +276,19 @@ export default function SessionPage() {
               {/* Controls */}
               <div className="mt-4 bg-gray-800 rounded-2xl p-6">
                 <div className="flex items-center justify-center gap-4">
-                  {sessionState === 'idle' && (
-                    <button
-                      onClick={requestCameraPermission}
-                      className="px-8 py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors flex items-center gap-3"
-                    >
-                      <VideoCameraIcon className="w-6 h-6" />
-                      <span className="font-semibold">카메라 시작</span>
-                    </button>
+                  {(sessionState === 'idle' || sessionState === 'error') && (
+                    <div className="flex flex-col items-center gap-3">
+                      <button
+                        onClick={requestCameraPermission}
+                        className="px-8 py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors flex items-center gap-3"
+                      >
+                        <VideoCameraIcon className="w-6 h-6" />
+                        <span className="font-semibold">카메라 시작</span>
+                      </button>
+                      {error && (
+                        <p className="text-red-400 text-sm text-center">{error}</p>
+                      )}
+                    </div>
                   )}
                   {sessionState === 'ready' && (
                     <button
