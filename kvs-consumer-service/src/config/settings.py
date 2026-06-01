@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Service Configuration
     service_name: str = "kvs-consumer-service"
     log_level: str = "INFO"
+    cors_origins: str = "http://localhost:3000"
 
     # Frame Processing
     frame_sample_rate: int = 10  # Process every Nth frame

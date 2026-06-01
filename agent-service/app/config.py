@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     bedrock_agent_id: Optional[str] = None
     bedrock_agent_alias_id: Optional[str] = None
     bedrock_knowledge_base_id: Optional[str] = None
-    enable_bedrock_mock: bool = True  # True for local, False for dev/prod
+    enable_bedrock_mock: bool = False  # Set ENABLE_BEDROCK_MOCK=true in .env for local development
     
     # Redis
     redis_host: str = "localhost"
@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # Retry Configuration
     max_retries: int = 3
     backoff_factor: int = 2
+
+    # CORS
+    cors_origins: str = "http://localhost:3000"
 
     # Rate Limiting
     rate_limit_enabled: bool = True

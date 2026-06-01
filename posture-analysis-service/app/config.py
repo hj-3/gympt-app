@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     sqs_endpoint_url: Optional[str] = None
     sqs_posture_event_queue_url: Optional[str] = None
     
+    # CORS
+    cors_origins: str = "http://localhost:3000"
+
     # Analysis
     frame_processing_interval: float = 0.1  # seconds
     feedback_threshold_score: float = 7.0  # below this, send feedback

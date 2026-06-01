@@ -6,10 +6,11 @@ set -e
 # Configuration
 ENV=${1:-prod}
 AWS_REGION="ap-northeast-2"
-AWS_ACCOUNT_ID="337112169365"
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 SERVICE_NAME="gympt-agent-service"
-GITOPS_REPO="../gympt-gitops"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GITOPS_REPO="$(cd "${SCRIPT_DIR}/../.." && pwd)/gympt-gitops"
 
 # Colors
 RED='\033[0;31m'
