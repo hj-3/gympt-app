@@ -12,7 +12,6 @@ import {
   PlayIcon
 } from '@heroicons/react/24/outline';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
-import toast from 'react-hot-toast';
 
 interface DashboardStats {
   totalWorkouts: number;
@@ -63,9 +62,7 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
-      if (error.response?.status !== 404) {
-        toast.error('통계를 불러오는데 실패했습니다');
-      }
+      // 백엔드 미연결 시 에러 토스트 없이 기본값 유지
     } finally {
       setLoading(false);
     }
