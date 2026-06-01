@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
@@ -46,21 +45,21 @@ export default function DashboardPage() {
     try {
       setLoading(true);
 
-      // Load stats
-      const statsResponse = await apiClient.getStats(user.userId);
-      if (statsResponse.data) {
+      // Load stats — 백엔드 StatsResponse 필드: completedSessions, totalMinutes, avgPostureScore
+      const statsResponse = await apiClient.getStats(user.userId) as any;
+      if (statsResponse) {
         setStats({
-          totalWorkouts: statsResponse.data.totalWorkouts || 0,
-          totalMinutes: statsResponse.data.totalDuration || 0,
-          avgScore: statsResponse.data.averagePostureScore || 0,
-          streak: statsResponse.data.currentStreak || 0,
+          totalWorkouts: statsResponse.completedSessions || 0,
+          totalMinutes: statsResponse.totalMinutes || 0,
+          avgScore: statsResponse.avgPostureScore || 0,
+          streak: statsResponse.weeklyWorkouts || 0,
         });
       }
 
-      // Load recent reports
-      const reportsResponse = await apiClient.getReports(user.userId, 1, 5);
-      if (reportsResponse.data && reportsResponse.data.items) {
-        setRecentSessions(reportsResponse.data.items);
+      // Load recent reports — 백엔드: { items: [], total: 0 }
+      const reportsResponse = await apiClient.getReports(user.userId, 1, 5) as any;
+      if (reportsResponse?.items) {
+        setRecentSessions(reportsResponse.items);
       }
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);

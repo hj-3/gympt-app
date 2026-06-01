@@ -47,13 +47,13 @@ jobs:
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "bucket=gympt-fe-deploy-337112169365" >> $GITHUB_OUTPUT
-            echo "distribution=E14Z61F5I2E9ZM" >> $GITHUB_OUTPUT
+            echo "bucket=${{ vars.FRONTEND_BUCKET_PROD }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_PROD }}" >> $GITHUB_OUTPUT
             echo "api_url=https://api.g2mpt.com" >> $GITHUB_OUTPUT
           else
             echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "bucket=gympt-dev-frontend-337112169365" >> $GITHUB_OUTPUT
-            echo "distribution=TBD" >> $GITHUB_OUTPUT
+            echo "bucket=${{ vars.FRONTEND_BUCKET_DEV }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_DEV }}" >> $GITHUB_OUTPUT
             echo "api_url=https://api-dev.g2mpt.com" >> $GITHUB_OUTPUT
           fi
 

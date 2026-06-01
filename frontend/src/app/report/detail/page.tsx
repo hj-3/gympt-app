@@ -29,8 +29,8 @@ function ReportDetailContent() {
   const loadReport = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getReport(sessionId!);
-      setReport(response.data);
+      const response = await apiClient.getReport(sessionId!) as any;
+      setReport(response);
     } catch (error: any) {
       console.error('Failed to load report:', error);
       toast.error('리포트를 불러오는데 실패했습니다');

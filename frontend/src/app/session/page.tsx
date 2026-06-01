@@ -145,16 +145,17 @@ export default function SessionPage() {
       // 루틴이 없어도 자유 운동 모드로 세션 시작 가능
       let routineId: string | null = null;
       try {
-        const routineResponse = await apiClient.getTodayRoutine(user.userId);
-        routineId = routineResponse.data?.routineId ?? null;
+        const routineResponse = await apiClient.getTodayRoutine(user.userId) as any;
+        routineId = routineResponse?.routineId ?? null;
       } catch {
         // 루틴 없음 - 자유 운동으로 진행
       }
 
       const sessionResponse = await apiClient.startSession(user.userId, routineId ?? 'free-workout');
-      const session = sessionResponse.data;
+      // 백엔드 WorkoutSessionResponse 필드: id (sessionId 아님)
+      const sessionId = (sessionResponse as any).id ?? (sessionResponse as any).data?.id;
 
-      setSessionId(session.sessionId);
+      setSessionId(sessionId);
       setSessionState('active');
       toast.success('운동을 시작합니다!');
 

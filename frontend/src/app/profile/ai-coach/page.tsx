@@ -47,9 +47,10 @@ export default function AICoachPage() {
   const loadRecommendations = async () => {
     try {
       setLoadingHistory(true);
-      const response = await apiClient.getWorkoutRecommendations(10);
-      if (response.data) {
-        const history = response.data.map((rec: any) => ({
+      const response = await apiClient.getWorkoutRecommendations(10) as any;
+      const items = Array.isArray(response) ? response : response?.data ?? [];
+      if (items.length > 0) {
+        const history = items.map((rec: any) => ({
           id: rec.id,
           title: '맞춤 운동 프로그램',
           content: rec.recommendation,
@@ -78,8 +79,7 @@ export default function AICoachPage() {
       // Load body profile to enhance recommendation
       let bodyProfile = null;
       try {
-        const bodyResponse = await apiClient.getLatestBodyProfile();
-        bodyProfile = bodyResponse.data;
+        bodyProfile = await apiClient.getLatestBodyProfile() as any;
       } catch (err) {
         console.log('No body profile found, proceeding without it');
       }

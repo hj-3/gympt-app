@@ -28,10 +28,10 @@ export default function ReportListPage() {
 
     try {
       setLoading(true);
-      const response = await apiClient.getReports(user.userId, page, 10);
-      if (response.data) {
-        setReports(response.data.items || []);
-        setHasMore(response.data.hasMore || false);
+      const response = await apiClient.getReports(user.userId, page, 10) as any;
+      if (response) {
+        setReports(response.items || []);
+        setHasMore(response.hasMore || false);
       }
     } catch (error) {
       console.error('Failed to load reports:', error);

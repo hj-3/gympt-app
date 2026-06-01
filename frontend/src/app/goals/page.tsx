@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 
 export default function GoalsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
   const [goalType, setGoalType] = useState('weight_loss');
@@ -30,11 +30,11 @@ export default function GoalsPage() {
 
   const loadExistingGoal = async () => {
     try {
-      const response = await apiClient.getLatestGoal();
-      if (response.data) {
-        setGoalType(response.data.goalType || 'weight_loss');
-        setTargetValue(response.data.targetValue?.toString() || '');
-        setTargetDate(response.data.targetDate || '');
+      const response = await apiClient.getLatestGoal() as any;
+      if (response) {
+        setGoalType(response.goalType || 'weight_loss');
+        setTargetValue(response.targetValue?.toString() || '');
+        setTargetDate(response.targetDate || '');
       }
     } catch (error: any) {
       console.log('No existing goal');
