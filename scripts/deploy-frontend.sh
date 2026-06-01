@@ -13,15 +13,16 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Arguments
-S3_BUCKET="${1:-}"
-CLOUDFRONT_DISTRIBUTION_ID="${2:-}"
-ENV="${3:-prod}"
+ENV="${1:-prod}"
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+S3_BUCKET="${2:-gympt-fe-deploy-${AWS_ACCOUNT_ID}}"
+CLOUDFRONT_DISTRIBUTION_ID="${3:-}"
 
-if [ -z "${S3_BUCKET}" ]; then
-    echo -e "${RED}Error: S3 bucket name required${NC}"
-    echo "Usage: $0 <s3-bucket-name> [cloudfront-distribution-id] [env]"
-    echo "Example: $0 gympt-prod-frontend-123456789 E1234567890ABC prod"
-    exit 1
+# CloudFront ID를 인자로 주지 않은 경우 태그로 자동 조회
+if [ -z "${CLOUDFRONT_DISTRIBUTION_ID}" ]; then
+    CLOUDFRONT_DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+        --query "DistributionList.Items[?contains(Aliases.Items, 'g2mpt.com')].Id | [0]" \
+        --output text 2>/dev/null || echo "")
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
