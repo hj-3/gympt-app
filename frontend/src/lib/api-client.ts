@@ -35,9 +35,12 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         if (error.response?.status === 401) {
-          // Token expired, redirect to login
+          // 하드 리다이렉트 대신 Zustand 상태를 초기화하고 Next.js router로 이동
+          // window.location.href 사용 시 앱 상태 전체가 날아가는 부작용 방지
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            const { useAuthStore } = await import('./store');
+            useAuthStore.getState().logout().catch(() => {});
+            window.location.replace('/login');
           }
         }
         return Promise.reject(error);

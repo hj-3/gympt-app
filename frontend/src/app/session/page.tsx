@@ -152,9 +152,10 @@ export default function SessionPage() {
       }
 
       const sessionResponse = await apiClient.startSession(user.userId, routineId ?? 'free-workout');
-      const session = sessionResponse.data;
+      // 백엔드 WorkoutSessionResponse 필드: id (sessionId 아님)
+      const sessionId = (sessionResponse as any).id ?? (sessionResponse as any).data?.id;
 
-      setSessionId(session.sessionId);
+      setSessionId(sessionId);
       setSessionState('active');
       toast.success('운동을 시작합니다!');
 
