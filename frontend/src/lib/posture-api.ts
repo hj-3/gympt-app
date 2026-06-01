@@ -3,9 +3,11 @@
  */
 import axios from 'axios';
 
+// 브라우저 → backend-api → posture-analysis-service (클러스터 내부)
+// 정적 배포(S3+CloudFront)라 Next.js API 라우트 불가 → backend-api 프록시 사용
 const postureApiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_POSTURE_API_URL || 'http://localhost:8002/api/v1',
-  timeout: 5000,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/posture`,
+  timeout: 10000,
 });
 
 export interface AnalyzeFrameRequest {
