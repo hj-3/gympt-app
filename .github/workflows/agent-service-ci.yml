@@ -116,3 +116,4 @@ jobs:
             ## Summary
             - Update agent-service ${{ needs.build-and-push.outputs.environment }} image tag to `${{ needs.build-and-push.outputs.image-tag }}`
             - Triggered by hj-3/gympt-app@${{ github.sha }}
+

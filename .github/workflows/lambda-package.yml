@@ -110,3 +110,4 @@ jobs:
             --function-name gympt-${{ steps.env.outputs.environment }}-${{ matrix.lambda }} \
             --s3-bucket ${{ steps.bucket.outputs.bucket }} \
             --s3-key ${{ matrix.lambda }}.zip
+
