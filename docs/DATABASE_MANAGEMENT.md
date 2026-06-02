@@ -640,5 +640,5 @@ kubectl exec -n gympt-prod <pod> -- \
 
 ---
 
-**Maintainer**: GYMPT Platform Team  
+**Maintainer**: HJ 
 **Contact**: platform@gympt.example.com

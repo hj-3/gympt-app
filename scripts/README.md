@@ -1,154 +1,339 @@
 # GYMPT App Scripts
 
-서비스 빌드, 배포, 검증을 위한 스크립트 모음입니다.
+> 애플리케이션 빌드 및 배포를 위한 스크립트
 
 ---
 
-## Prod 환경 앱 배포 순서
+## 📋 핵심 스크립트
 
-> **선행 조건**: `gympt-gitops`의 STEP 6~17 완료 (ArgoCD와 플랫폼 서비스가 정상 동작 중)
+### 1. build-frontend.sh
+
+**용도**: Next.js 프론트엔드 빌드 및 S3 배포
+
+**사용법**:
+```bash
+./scripts/build-frontend.sh prod
+./scripts/build-frontend.sh dev
+```
+
+**수행 작업**:
+1. Next.js 프로젝트 빌드
+2. 정적 파일 생성 (SSG)
+3. S3 버킷에 업로드
+4. CloudFront 캐시 무효화
+
+**필요 환경 변수**:
+```bash
+# prod 환경
+S3_BUCKET=gympt-frontend-prod
+CLOUDFRONT_ID=E14Z61F5I2E9ZM
+
+# dev 환경
+S3_BUCKET=gympt-frontend-dev
+CLOUDFRONT_ID=E14Z61F5I2E9ZM
+```
 
 ---
 
-### STEP 18 — ECR 이미지 초기 Push (CI/CD 전 수동 배포 시)
+### 2. deploy-backend.sh
 
-GitHub Actions CI/CD가 설정되어 있으면 이 단계는 건너뜁니다.
-처음 배포하거나 수동으로 이미지를 올릴 때만 실행합니다.
+**용도**: Backend API Docker 이미지 빌드 및 ECR 푸시
+
+**사용법**:
+```bash
+./scripts/deploy-backend.sh prod
+./scripts/deploy-backend.sh dev
+```
+
+**수행 작업**:
+1. Gradle 빌드 (Spring Boot)
+2. Docker 이미지 생성
+3. ECR 로그인
+4. 이미지 태그 및 푸시
+5. (선택) GitOps 레포 업데이트
+
+**빌드되는 이미지**:
+```
+{ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend-api:latest
+{ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend-api:v{VERSION}
+```
+
+---
+
+### 3. deploy-agent.sh
+
+**용도**: Agent Service Docker 이미지 빌드 및 ECR 푸시
+
+**사용법**:
+```bash
+./scripts/deploy-agent.sh prod
+./scripts/deploy-agent.sh dev
+```
+
+**수행 작업**:
+1. Python 의존성 설치
+2. Docker 이미지 생성
+3. ECR 로그인
+4. 이미지 태그 및 푸시
+
+**빌드되는 이미지**:
+```
+{ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/agent-service:latest
+```
+
+---
+
+### 4. deploy-frontend.sh
+
+**용도**: 프론트엔드 전체 배포 (빌드 + 업로드)
+
+**사용법**:
+```bash
+./scripts/deploy-frontend.sh prod
+./scripts/deploy-frontend.sh dev
+```
+
+**수행 작업**:
+- `build-frontend.sh` 호출
+- S3 동기화 상태 확인
+- CloudFront 배포 상태 확인
+
+---
+
+### 5. check-project.sh
+
+**용도**: 애플리케이션 프로젝트 구조 검증
+
+**사용법**:
+```bash
+./scripts/check-project.sh
+```
+
+**검증 항목**:
+- 서비스 디렉토리 구조
+- Dockerfile 존재 여부
+- 필수 설정 파일
+- 의존성 파일
+
+---
+
+## 🚀 일반적인 사용 순서
+
+### 수동 배포 (CI/CD 없이)
 
 ```bash
-cd gympt-app
-
+# 1. ECR 로그인
 AWS_REGION="ap-northeast-2"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-
-# ECR 로그인
 aws ecr get-login-password --region ${AWS_REGION} | \
-  docker login --username AWS --password-stdin ${ECR_REGISTRY}
+  docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
-# 서비스별 빌드 & Push
-./scripts/build-all-services.sh prod
-```
-
-또는 서비스별 개별 배포:
-
-```bash
-# Backend API
+# 2. Backend API 배포
 ./scripts/deploy-backend.sh prod
 
-# Agent Service
+# 3. Agent Service 배포
 ./scripts/deploy-agent.sh prod
 
-# Frontend (S3 + CloudFront)
+# 4. Frontend 배포
 ./scripts/deploy-frontend.sh prod
-```
 
----
-
-### STEP 19 — ArgoCD 앱 동기화 확인
-
-```bash
-# ArgoCD 전체 앱 상태 확인
-kubectl get applications -n argocd
-
-# 특정 앱 강제 동기화
+# 5. ArgoCD 동기화 (또는 자동 동기화 대기)
 argocd app sync backend-api-prod
 argocd app sync agent-service-prod
 
-# 모든 앱 동기화 대기
-argocd app wait --all --health --timeout 600
-```
-
----
-
-### STEP 20 — 서비스 동작 확인
-
-```bash
-# Pod 상태
+# 6. 배포 확인
 kubectl get pods -n gympt-prod
-
-# 로그 확인
-kubectl logs -f deployment/backend-api-prod -n gympt-prod
-kubectl logs -f deployment/agent-service-prod -n gympt-prod
-
-# Ingress 확인 (ALB 엔드포인트)
-kubectl get ingress -n gympt-prod
 ```
 
----
-
-### STEP 21 — 배포 검증
+### 로컬 개발
 
 ```bash
-./scripts/verify-deployment.sh prod
+# Backend API
+cd backend-api
+./gradlew bootRun
+
+# Agent Service
+cd agent-service
+pip install -r requirements.txt
+uvicorn main:app --reload
+
+# Frontend
+cd frontend
+npm install
+npm run dev
 ```
 
 ---
 
-## 전체 배포 순서 요약 (3개 레포)
+## 🔄 CI/CD 워크플로우
+
+GitHub Actions가 자동으로 빌드 및 배포를 처리합니다:
 
 ```
-[gympt-infra]
-  STEP 1  init-backend.sh                    Terraform 백엔드 생성
-  STEP 2  terraform init                     백엔드 연결
-  STEP 3  terraform apply (단계적)            인프라 프로비저닝
-  STEP 4  get-kubeconfig.sh prod             kubectl 연결
-  STEP 5  check-resources.sh prod            인프라 상태 확인
+개발자 커밋 & 푸시
+  ↓
+GitHub Actions 트리거
+  ↓
+1. 테스트 실행
+2. Docker 이미지 빌드
+3. ECR 푸시
+4. gympt-gitops values 업데이트
+  ↓
+ArgoCD 자동 동기화
+  ↓
+EKS 클러스터 배포
+```
 
-[gympt-gitops]
-  STEP 6  install-platform.sh prod           ArgoCD + ESO + Prometheus
-  STEP 7  AWS Secrets Manager 시크릿 생성    (수동 작업)
-  STEP 8  ESO values ACCOUNT_ID 업데이트    helm upgrade
-  STEP 9  cluster-secret-store.yaml         ClusterSecretStore 적용
-  STEP 10 namespace-labels.yaml             네임스페이스 + 레이블
-  STEP 11 provisioner.yaml                  Karpenter NodePool
-  STEP 12 argocd/projects/*.yaml            ArgoCD 프로젝트 등록
-  STEP 13 apply-network-policies.sh prod    NetworkPolicy 적용
-  STEP 14 argocd/app-of-apps/prod-apps.yaml 앱 배포 트리거
-  STEP 15 platform/monitoring/*             ServiceMonitor + PrometheusRule
-  STEP 16 kubectl get applications          ArgoCD 상태 확인
-  STEP 17 test-connectivity.sh              서비스 간 통신 테스트
-
-[gympt-app]
-  STEP 18 build-all-services.sh prod        이미지 빌드 & ECR Push (수동시)
-  STEP 19 argocd app sync                   ArgoCD 동기화
-  STEP 20 kubectl get pods -n gympt-prod    Pod 상태 확인
-  STEP 21 verify-deployment.sh prod         최종 검증
+**GitHub Secrets 필요**:
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION=ap-northeast-2
 ```
 
 ---
 
-## CI/CD 자동 배포 흐름
+## 📦 아카이브된 스크립트
 
-수동 배포 없이 GitHub Actions를 통해 자동 배포됩니다.
+다음 스크립트들은 `archive/`로 이동되었습니다:
 
-```
-개발자 main 브랜치 push
-  │
-  ▼
-GitHub Actions 트리거 (각 서비스별 ci.yml)
-  │  1. 테스트 실행
-  │  2. Docker 이미지 빌드
-  │  3. ECR Push (ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/SERVICE:TAG)
-  │  4. gympt-gitops 레포의 values-prod.yaml image.tag 업데이트
-  │
-  ▼
-ArgoCD가 변경 감지 → 자동 Helm Upgrade
-  │
-  ▼
-gympt-prod 네임스페이스에 Rolling Update
+| 스크립트 | 이동 사유 |
+|---------|----------|
+| **build-all-services.sh** | 개별 배포 스크립트로 분리 |
+| **deploy-all.sh** | CI/CD로 자동화 |
+| **verify-deployment.sh** | 루트 verify-cluster.sh로 통합 |
+
+**아카이브 접근**:
+```bash
+ls scripts/archive/
 ```
 
 ---
 
-## 스크립트 참조
+## 🔧 트러블슈팅
 
-| 스크립트 | 설명 | 사용법 |
-|----------|------|--------|
-| `build-all-services.sh` | 전체 서비스 빌드 & ECR Push | `./scripts/build-all-services.sh prod` |
-| `deploy-backend.sh` | Backend API 수동 배포 | `./scripts/deploy-backend.sh prod` |
-| `deploy-agent.sh` | Agent Service 수동 배포 | `./scripts/deploy-agent.sh prod` |
-| `deploy-frontend.sh` | Frontend S3+CloudFront 배포 | `./scripts/deploy-frontend.sh prod` |
-| `deploy-all.sh` | 전체 서비스 일괄 배포 | `./scripts/deploy-all.sh prod` |
-| `verify-deployment.sh` | 배포 상태 검증 | `./scripts/verify-deployment.sh prod` |
-| `check-project.sh` | 프로젝트 구조 확인 | `./scripts/check-project.sh` |
+### build-frontend.sh 실패
+
+```bash
+# 수동 빌드
+cd frontend
+npm install
+npm run build
+
+# S3 업로드
+aws s3 sync out/ s3://gympt-frontend-prod/ --delete
+
+# CloudFront 캐시 무효화
+aws cloudfront create-invalidation \
+  --distribution-id E14Z61F5I2E9ZM \
+  --paths "/*"
+```
+
+### deploy-backend.sh 실패
+
+```bash
+# 수동 빌드
+cd backend-api
+./gradlew clean build
+
+# Docker 빌드
+docker build -t backend-api:latest .
+
+# ECR 푸시
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+docker tag backend-api:latest \
+  ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend-api:latest
+
+docker push ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend-api:latest
+```
+
+### ECR 로그인 실패
+
+```bash
+# 권한 확인
+aws ecr describe-repositories --region ap-northeast-2
+
+# 재로그인
+aws ecr get-login-password --region ap-northeast-2 | \
+  docker login --username AWS --password-stdin \
+  $(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-2.amazonaws.com
+```
+
+---
+
+## 📁 서비스별 구조
+
+```
+gympt-app/
+├── backend-api/           # Spring Boot
+│   ├── Dockerfile
+│   ├── build.gradle
+│   └── src/
+│
+├── agent-service/         # FastAPI
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+│
+├── posture-analysis-service/  # FastAPI + MediaPipe
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+│
+├── frontend/              # Next.js
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+│
+└── scripts/
+    ├── build-frontend.sh
+    ├── deploy-backend.sh
+    ├── deploy-agent.sh
+    └── deploy-frontend.sh
+```
+
+---
+
+## 🧪 테스트
+
+### 로컬 테스트
+
+```bash
+# Backend API
+cd backend-api
+./gradlew test
+
+# Python 서비스
+cd agent-service
+pytest tests/
+
+# Frontend
+cd frontend
+npm test
+```
+
+### Docker 이미지 테스트
+
+```bash
+# Backend API
+docker build -t backend-api:test backend-api/
+docker run -p 8080:8080 backend-api:test
+
+# Agent Service
+docker build -t agent-service:test agent-service/
+docker run -p 8003:8003 agent-service:test
+```
+
+---
+
+## 📖 관련 문서
+
+- **[../README.md](../README.md)** - 애플리케이션 개요
+- **[../docs/API문서.md](../docs/API문서.md)** - API 참조
+- **[../../DEPLOYMENT_GUIDE.md](../../DEPLOYMENT_GUIDE.md)** - 완전한 배포 가이드
+- **[../../scripts/README.md](../../scripts/README.md)** - 루트 스크립트 가이드
+
+---
+
+**최종 업데이트**: 2026-06-02  
+**관리**: Application Team
