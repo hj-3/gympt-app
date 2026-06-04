@@ -34,18 +34,8 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // auth 상태만 초기화 — 하드 리다이렉트 제거
-          // ProtectedRoute가 user=null을 감지해 /login으로 이동하도록 위임
-          if (typeof window !== 'undefined') {
-            try {
-              const { useAuthStore } = await import('./store');
-              await useAuthStore.getState().logout();
-            } catch {
-              // ignore
-            }
-          }
-        }
+        // 401 처리 제거 — 각 API 호출의 try-catch에서 개별 처리
+        // 자동 logout 시 Cognito 세션 날아가서 사용자가 강제 로그아웃되는 부작용 방지
         return Promise.reject(error);
       }
     );
