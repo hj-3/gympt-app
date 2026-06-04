@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { ChevronLeftIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api-client';
-import toast from 'react-hot-toast';
+
 
 interface BodyData {
   id: string;
@@ -26,19 +26,28 @@ export default function BodyHistoryPage() {
   }, []);
 
   const loadHistory = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await apiClient.getBodyProfileHistory();
-      console.log('Body profile history:', response);
-      if (response && Array.isArray(response)) {
-        setHistory(response);
+      const response = await apiClient.getBodyProfileHistory() as any;
+      const items: BodyData[] = Array.isArray(response)
+        ? response
+        : response?.items ?? response?.data ?? [];
+
+      if (items.length > 0) {
+        setHistory(items);
+        setLoading(false);
+        return;
       }
-    } catch (error: any) {
-      console.error('Failed to load body profile history:', error);
-      toast.error('히스토리를 불러오는데 실패했습니다');
-    } finally {
-      setLoading(false);
+    } catch {
+      // fall through to localStorage
     }
+
+    // localStorage fallback
+    try {
+      const local = localStorage.getItem('gympt_body_history');
+      if (local) setHistory(JSON.parse(local));
+    } catch { /* ignore */ }
+    setLoading(false);
   };
 
   const calculateBMI = (weight: number, height: number) => {
