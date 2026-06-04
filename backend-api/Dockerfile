@@ -10,6 +10,7 @@ WORKDIR /app
 # Copy Gradle files
 COPY build.gradle settings.gradle gradlew gradle.properties lombok.config ./
 COPY gradle ./gradle
+RUN chmod +x gradlew
 
 # Download dependencies (cached layer)
 RUN ./gradlew dependencies --no-daemon || true
