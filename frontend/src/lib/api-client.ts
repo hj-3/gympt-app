@@ -148,7 +148,7 @@ class ApiClient {
     muscle_mass?: number;
   }): Promise<ApiResponse<any>> {
     const response = await this.client.post('/api/v1/agent/workout-recommendation', data, {
-      timeout: 60000, // AI 응답은 시간이 걸릴 수 있음
+      timeout: 120000, // Bedrock Agent 응답 대기 (최대 2분)
     });
     return response.data;
   }
