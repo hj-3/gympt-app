@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +31,7 @@ public class WorkoutSessionService {
     private final WorkoutSessionRepository workoutSessionRepository;
     private final WorkoutPlanRepository workoutPlanRepository;
     private final UserRepository userRepository;
+    private final SqsService sqsService;
 
     @Transactional
     public WorkoutSessionResponse startSession(UUID userId, WorkoutSessionRequest request) {
@@ -88,6 +91,15 @@ public class WorkoutSessionService {
 
         session = workoutSessionRepository.save(session);
         log.info("Workout session ended: {}", sessionId);
+
+        final UUID finalSessionId = session.getId();
+        final UUID finalUserId = session.getUser().getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sqsService.publishRecommendationUpdateEvent(finalUserId, finalSessionId);
+            }
+        });
 
         return WorkoutSessionResponse.from(session);
     }

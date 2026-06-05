@@ -67,6 +67,7 @@ app:
     sqs:
       posture-event-queue-url: ${SQS_POSTURE_EVENT_QUEUE_URL}
       report-generation-queue-url: ${SQS_REPORT_GENERATION_QUEUE_URL}
+      recommendation-update-queue-url: ${SQS_RECOMMENDATION_UPDATE_QUEUE_URL:}
 
     eventbridge:
       bus-name: ${EVENTBRIDGE_BUS_NAME}

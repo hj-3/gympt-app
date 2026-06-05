@@ -179,15 +179,13 @@ class AsyncSQSClient:
         if settings.is_local and self.endpoint_url:
             return f"{self.endpoint_url}/000000000000/{queue_name}"
 
-        # For dev/prod environments
+        # For dev/prod environments - use configured URLs from env vars
+        account_id = settings.aws_account_id or "337112169365"
+        base = f"https://sqs.{self.region}.amazonaws.com/{account_id}"
         queue_urls = {
-            "posture-analysis-queue": f"https://sqs.{self.region}.amazonaws.com/ACCOUNT_ID/gympt-posture-analysis-{settings.app_env}",
-            "report-generation-queue": f"https://sqs.{self.region}.amazonaws.com/ACCOUNT_ID/gympt-report-generation-{settings.app_env}"
+            "posture-analysis-queue": settings.sqs_posture_event_queue_url or f"{base}/gympt-{settings.app_env}-posture-event-queue",
+            "report-generation-queue": settings.sqs_report_generation_queue_url or f"{base}/gympt-{settings.app_env}-report-generation-queue",
         }
-
-        # If explicit queue URL is configured, use it
-        if settings.sqs_agent_task_queue_url:
-            return settings.sqs_agent_task_queue_url
 
         return queue_urls.get(queue_name)
 

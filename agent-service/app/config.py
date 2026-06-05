@@ -41,9 +41,13 @@ class Settings(BaseSettings):
     dynamodb_endpoint_url: Optional[str] = None
     dynamodb_agent_interactions_table: str = "gympt-agent-interactions-local"
     
+    # AWS Account
+    aws_account_id: Optional[str] = None
+
     # SQS
     sqs_endpoint_url: Optional[str] = None
-    sqs_agent_task_queue_url: Optional[str] = None
+    sqs_posture_event_queue_url: Optional[str] = None
+    sqs_report_generation_queue_url: Optional[str] = None
     
     # Backend API
     backend_api_base_url: str = "http://localhost:8080"
