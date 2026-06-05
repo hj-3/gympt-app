@@ -24,9 +24,11 @@ DYNAMODB_TABLE_PREFIX = os.getenv("DYNAMODB_TABLE_PREFIX", "gympt-local")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "")
+NOTIFICATION_QUEUE_URL = os.getenv("NOTIFICATION_QUEUE_URL", "")
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+sqs_client = boto3.client("sqs", region_name=AWS_REGION)
 
 
 def get_recent_workout_performance(user_id: str, limit: int = 5) -> Dict[str, Any]:
@@ -184,6 +186,32 @@ def save_recommendation_history(recommendation: Dict[str, Any]) -> bool:
         return False
 
 
+def send_recommendation_notification(recommendation: Dict[str, Any]):
+    """Send RECOMMENDATION_UPDATE notification to notification queue."""
+    if not NOTIFICATION_QUEUE_URL:
+        logger.warning("NOTIFICATION_QUEUE_URL not configured, skipping notification")
+        return
+
+    try:
+        message = {
+            "type": "RECOMMENDATION_UPDATE",
+            "userId": recommendation["userId"],
+            "adjustment": recommendation["adjustment"],
+            "recommendations": recommendation.get("recommendations", []),
+            "performanceMetrics": recommendation.get("performanceMetrics", {}),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        sqs_client.send_message(
+            QueueUrl=NOTIFICATION_QUEUE_URL,
+            MessageBody=json.dumps(message),
+        )
+
+        logger.info(f"Sent recommendation notification for user: {recommendation['userId']}")
+    except Exception as e:
+        logger.error(f"Error sending recommendation notification: {e}")
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Process workout completion events and update recommendations.
@@ -239,6 +267,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 if api_success or history_success:
                     processed_count += 1
                     logger.info(f"Updated recommendations for user: {user_id} - {adjustment}")
+                    send_recommendation_notification(recommendation)
                 else:
                     failed_count += 1
 

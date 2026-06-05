@@ -3,7 +3,7 @@ Bedrock Agent Service - AWS Bedrock Agent Integration
 """
 import boto3
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from ..config.settings import settings
 
 

@@ -121,30 +121,39 @@ class AgentService:
             # Render prompt
             prompt = prompt_service.render_posture_prompt(posture_request)
 
-            # Call Bedrock
-            bedrock_response = await bedrock_client.invoke_model(
-                prompt=prompt,
-                max_tokens=1000,
-                temperature=0.5,
-                system="You are an expert movement coach specializing in exercise form and injury prevention."
+            # Call Bedrock Agent
+            session_id = f"{user_id}-posture-{interaction_id[:8]}"
+            session_attributes = {
+                "exercise": posture_request.get("exercise_name", ""),
+                "rep_count": str(posture_request.get("rep_count", 0)),
+            }
+            agent_response = await bedrock_client.invoke_agent(
+                session_id=session_id,
+                input_text=prompt,
+                user_id=user_id,
+                session_attributes=session_attributes,
+                enable_trace=False
             )
 
+            content = agent_response["completion"]
+
             # Parse response for severity
-            content = bedrock_response["content"].lower()
-            if "severe" in content or "danger" in content or "stop" in content:
+            content_lower = content.lower()
+            if "severe" in content_lower or "danger" in content_lower or "stop" in content_lower:
                 severity = "high"
-            elif "caution" in content or "moderate" in content:
+            elif "caution" in content_lower or "moderate" in content_lower:
                 severity = "medium"
             else:
                 severity = "low"
 
             # Build response
             result = {
-                "feedback": bedrock_response["content"],
+                "feedback": content,
                 "corrections": posture_request.get("detected_issues", []),
                 "severity": severity,
-                "model_used": bedrock_response["model"],
-                "interaction_id": interaction_id
+                "model_used": "bedrock-agent",
+                "interaction_id": interaction_id,
+                "session_id": session_id
             }
 
             # Log to DynamoDB (non-blocking)
@@ -152,9 +161,9 @@ class AgentService:
                 user_id=user_id,
                 interaction_type="posture_feedback",
                 request_data=posture_request,
-                response_data={"feedback": bedrock_response["content"], "severity": severity},
-                model_id=bedrock_response["model"],
-                tokens_used=bedrock_response.get("usage", {})
+                response_data={"feedback": content, "severity": severity},
+                model_id="bedrock-agent",
+                tokens_used={}
             )
 
             return result
@@ -200,27 +209,34 @@ class AgentService:
                 report_request
             )
 
-            # Call Bedrock
-            bedrock_response = await bedrock_client.invoke_model(
-                prompt=prompt,
-                max_tokens=1500,
-                temperature=0.6,
-                system="You are a fitness analytics expert who provides actionable insights based on workout data."
+            # Call Bedrock Agent
+            session_id = f"{user_id}-report-{interaction_id[:8]}"
+            session_attributes = {
+                "report_type": report_request.get("report_type", "weekly"),
+                "period_start": report_request.get("period_start", ""),
+                "period_end": report_request.get("period_end", ""),
+            }
+            agent_response = await bedrock_client.invoke_agent(
+                session_id=session_id,
+                input_text=prompt,
+                user_id=user_id,
+                session_attributes=session_attributes,
+                enable_trace=False
             )
 
-            # Parse response for key insights
-            content = bedrock_response["content"]
+            content = agent_response["completion"]
             insights = self._extract_insights(content)
             recommendations = self._extract_recommendations(content)
 
             # Build response
             result = {
-                "report_summary": content[:500],  # First 500 chars as summary
+                "report_summary": content[:500],
                 "key_insights": insights,
                 "recommendations": recommendations,
-                "model_used": bedrock_response["model"],
+                "model_used": "bedrock-agent",
                 "task_id": task_id,
-                "interaction_id": interaction_id
+                "interaction_id": interaction_id,
+                "session_id": session_id
             }
 
             # Log to DynamoDB (non-blocking)
@@ -229,8 +245,8 @@ class AgentService:
                 interaction_type="report_generation",
                 request_data=report_request,
                 response_data={"summary": result["report_summary"]},
-                model_id=bedrock_response["model"],
-                tokens_used=bedrock_response.get("usage", {})
+                model_id="bedrock-agent",
+                tokens_used={}
             )
 
             # Publish to SQS for full report generation (non-blocking)

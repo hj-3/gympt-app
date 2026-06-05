@@ -30,21 +30,33 @@ class AsyncSQSClient:
         """
         Publish session completion event to SQS.
 
-        Args:
-            user_id: User identifier
-            session_id: Session identifier
-            summary_data: Session summary data
-
-        Returns:
-            True if published successfully
+        Message format matches posture-event-processor Lambda expectations:
+        - camelCase fields (sessionId, userId, eventId)
+        - analysis.score from avg_score
+        - analysis.issues[] from issues_summary dict
         """
         try:
+            import uuid as _uuid
+
+            # Convert issues_summary {type: count} to issues list Lambda expects
+            issues_summary = summary_data.get("issues_summary", {})
+            issues = [
+                {"type": issue_type, "severity": "medium", "count": count}
+                for issue_type, count in issues_summary.items()
+            ]
+
             message_body = {
-                "event_type": "posture_session_completed",
-                "user_id": user_id,
-                "session_id": session_id,
+                "sessionId": session_id,
+                "userId": user_id,
+                "eventId": str(_uuid.uuid4()),
                 "timestamp": datetime.utcnow().isoformat(),
-                "summary": summary_data,
+                "analysis": {
+                    "score": summary_data.get("avg_score", 0.0),
+                    "issues": issues,
+                    "totalReps": summary_data.get("total_reps", 0),
+                    "durationSeconds": summary_data.get("duration_seconds", 0),
+                    "exerciseType": summary_data.get("exercise_type", ""),
+                },
             }
 
             async with self.session.client(

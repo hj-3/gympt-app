@@ -87,6 +87,8 @@ class BedrockClient:
         self,
         session_id: str,
         input_text: str,
+        user_id: Optional[str] = None,
+        session_attributes: Optional[Dict[str, str]] = None,
         enable_trace: bool = False
     ) -> Dict[str, Any]:
         """Invoke Bedrock Agent."""
@@ -100,13 +102,23 @@ class BedrockClient:
                        f"agentAliasId={settings.bedrock_agent_alias_id}, "
                        f"sessionId={session_id}, region={self.region}")
 
-            response = self.agent_client.invoke_agent(
-                agentId=settings.bedrock_agent_id,
-                agentAliasId=settings.bedrock_agent_alias_id,
-                sessionId=session_id,
-                inputText=input_text,
-                enableTrace=enable_trace
-            )
+            attrs: Dict[str, str] = {}
+            if user_id:
+                attrs["user_id"] = user_id
+            if session_attributes:
+                attrs.update(session_attributes)
+
+            invoke_kwargs: Dict[str, Any] = {
+                "agentId": settings.bedrock_agent_id,
+                "agentAliasId": settings.bedrock_agent_alias_id,
+                "sessionId": session_id,
+                "inputText": input_text,
+                "enableTrace": enable_trace,
+            }
+            if attrs:
+                invoke_kwargs["sessionState"] = {"sessionAttributes": attrs}
+
+            response = self.agent_client.invoke_agent(**invoke_kwargs)
 
             logger.info("Bedrock Agent response received, processing stream...")
 

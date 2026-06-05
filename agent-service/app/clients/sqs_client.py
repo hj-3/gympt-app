@@ -134,24 +134,32 @@ class AsyncSQSClient:
         """
         Publish a report generation task.
 
-        Args:
-            user_id: User identifier
-            report_id: Report task ID
-            period_start: Report period start
-            period_end: Report period end
-            report_data: Full report data
-
-        Returns:
-            Message ID if successful
+        Message format matches report-generator Lambda expectations:
+        - userId (camelCase)
+        - period ("weekly"|"monthly") derived from date range
+        - requestedAt ISO timestamp
+        - periodStart/periodEnd for precise range (Lambda uses these if present)
         """
+        from datetime import datetime as _dt
+
+        # Derive period from date range
+        period = "weekly"
+        if period_start and period_end:
+            try:
+                start = _dt.fromisoformat(period_start.replace("Z", "+00:00"))
+                end = _dt.fromisoformat(period_end.replace("Z", "+00:00"))
+                delta_days = (end - start).days
+                period = "monthly" if delta_days > 14 else "weekly"
+            except Exception:
+                pass
+
         message_body = {
-            "task_type": "report_generation",
-            "user_id": user_id,
-            "report_id": report_id,
-            "period_start": period_start,
-            "period_end": period_end,
-            "report_data": report_data,
-            "environment": settings.app_env
+            "userId": user_id,
+            "reportId": report_id,
+            "period": period,
+            "periodStart": period_start,
+            "periodEnd": period_end,
+            "requestedAt": datetime.now(timezone.utc).isoformat(),
         }
 
         message_attributes = {

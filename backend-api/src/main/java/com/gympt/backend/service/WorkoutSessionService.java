@@ -98,6 +98,7 @@ public class WorkoutSessionService {
             @Override
             public void afterCommit() {
                 sqsService.publishRecommendationUpdateEvent(finalUserId, finalSessionId);
+                sqsService.publishWorkoutCompletedNotification(finalUserId, finalSessionId);
             }
         });
 

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     dynamodb_table_prefix: str = "gympt-local"
     backend_api_url: str = "http://localhost:8000"
     backend_api_key: str = ""
+    notification_queue_url: str = ""
     log_level: str = "INFO"
 
     # Analysis thresholds

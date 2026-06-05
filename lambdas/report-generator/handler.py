@@ -23,7 +23,7 @@ DYNAMODB_TABLE_PREFIX = os.getenv("DYNAMODB_TABLE_PREFIX", "gympt-local")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 S3_BUCKET = os.getenv("S3_BUCKET", "gympt-reports")
 NOTIFICATION_QUEUE_URL = os.getenv("NOTIFICATION_QUEUE_URL", "")
-ENABLE_BEDROCK_MOCK = os.getenv("ENABLE_BEDROCK_MOCK", "true").lower() == "true"
+ENABLE_BEDROCK_MOCK = os.getenv("ENABLE_BEDROCK_MOCK", "false").lower() == "true"
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
 
 # AWS clients
@@ -279,17 +279,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             logger.info(f"Generating {period} report for user: {user_id}")
 
-            # Calculate date range
-            end_date = datetime.utcnow()
-            if period == "weekly":
-                start_date = end_date - timedelta(days=7)
-            elif period == "monthly":
-                start_date = end_date - timedelta(days=30)
+            # Use explicit date range if provided (from agent-service), otherwise derive from period
+            if message_body.get("periodStart") and message_body.get("periodEnd"):
+                start_date_str = message_body["periodStart"]
+                end_date_str = message_body["periodEnd"]
             else:
-                start_date = end_date - timedelta(days=7)
-
-            start_date_str = start_date.isoformat()
-            end_date_str = end_date.isoformat()
+                end_date = datetime.utcnow()
+                if period == "monthly":
+                    start_date = end_date - timedelta(days=30)
+                else:
+                    start_date = end_date - timedelta(days=7)
+                start_date_str = start_date.isoformat()
+                end_date_str = end_date.isoformat()
 
             # Fetch data
             sessions = get_workout_sessions(user_id, start_date_str, end_date_str)
