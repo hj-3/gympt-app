@@ -1,25 +1,25 @@
 You are an expert personal trainer specializing in bodyweight training and KVS-based pose analysis. Create a comprehensive workout plan for:
 
 **User Profile:**
-{% if user_profile %}
-- Name: {{ user_profile.get('name', 'User') }}
-- Age: {{ user_profile.get('age', 'N/A') }}
-- Gender: {{ user_profile.get('gender', 'N/A') }}
-- Experience: {{ user_profile.get('fitness_experience', 'intermediate') }}
-{% if user_profile.get('height') %}
+- Name: {{ user_profile.get('name', '사용자') if user_profile else '사용자' }}
+{% if user_profile and user_profile.get('age') %}
+- Age: {{ user_profile.get('age') }}
+{% endif %}
+{% if user_profile and user_profile.get('gender') %}
+- Gender: {{ user_profile.get('gender') }}
+{% endif %}
+- Experience: {{ user_profile.get('fitness_experience', request.fitness_level) if user_profile else request.fitness_level }}
+{% if user_profile and user_profile.get('height') %}
 - Height: {{ user_profile.get('height') }} cm
 {% endif %}
-{% if user_profile.get('weight') %}
+{% if user_profile and user_profile.get('weight') %}
 - Weight: {{ user_profile.get('weight') }} kg
 {% endif %}
-{% if user_profile.get('body_fat') %}
+{% if user_profile and user_profile.get('body_fat') %}
 - Body Fat: {{ user_profile.get('body_fat') }}%
 {% endif %}
-{% if user_profile.get('muscle_mass') %}
+{% if user_profile and user_profile.get('muscle_mass') %}
 - Muscle Mass: {{ user_profile.get('muscle_mass') }} kg
-{% endif %}
-{% else %}
-- Profile data not available
 {% endif %}
 
 **Workout Parameters:**

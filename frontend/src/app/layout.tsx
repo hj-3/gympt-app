@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'GYMPT - 스마트 피트니스 트레이너',
