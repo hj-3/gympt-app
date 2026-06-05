@@ -29,6 +29,10 @@ class WorkoutRecommendationRequest(BaseModel):
 
 class WorkoutRecommendationResponse(BaseModel):
     recommendation: str = Field(..., description="AI-generated workout plan")
+    target_exercises: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="KVS-trackable target exercises [{exercise, sets, reps}]"
+    )
     model_used: str = Field(..., description="Bedrock model ID")
     cached: bool = Field(False, description="Was response cached")
     interaction_id: str = Field(..., description="Interaction tracking ID")

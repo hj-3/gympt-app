@@ -71,9 +71,13 @@ class AgentService:
                 enable_trace=False
             )
 
+            # Extract structured KVS-trackable targets (exercise/sets/reps) from the plan text
+            target_exercises = self._extract_target_exercises(agent_response["completion"])
+
             # Build response
             result = {
                 "recommendation": agent_response["completion"],
+                "target_exercises": target_exercises,
                 "model_used": "bedrock-agent",
                 "cached": False,
                 "interaction_id": interaction_id,
@@ -267,6 +271,50 @@ class AgentService:
         except Exception as e:
             logger.error(f"Failed to generate report: {e}")
             raise
+
+    # Korean exercise name -> KVS-trackable exercise key (matches frontend /workout)
+    _TRACKABLE_EXERCISES = {
+        "스쿼트": "squat",
+        "푸시업": "pushup",
+        "푸쉬업": "pushup",
+        "런지": "lunge",
+        "플랭크": "plank",
+    }
+
+    def _extract_target_exercises(self, content: str) -> list:
+        """
+        Parse the recommendation text and extract structured targets
+        (exercise key, sets, reps) for KVS-trackable exercises only.
+
+        Matches patterns like:
+          - "기본 스쿼트: 3세트 x 12-15회"
+          - "푸시업 3세트 x 10회"
+          - "플랭크: 3세트 x 30초"
+        Picks the first occurrence per exercise to avoid duplicates.
+        """
+        import re
+
+        targets: Dict[str, Dict[str, Any]] = {}
+
+        for line in content.split("\n"):
+            for kor_name, key in self._TRACKABLE_EXERCISES.items():
+                if kor_name not in line or key in targets:
+                    continue
+
+                # Find "N세트" and the first rep/second count after it
+                sets_match = re.search(r"(\d+)\s*세트", line)
+                reps_match = re.search(r"(\d+)(?:\s*[-~]\s*\d+)?\s*(?:회|초|개)", line)
+
+                sets = int(sets_match.group(1)) if sets_match else 3
+                reps = int(reps_match.group(1)) if reps_match else 10
+
+                targets[key] = {
+                    "exercise": key,
+                    "sets": sets,
+                    "reps": reps,
+                }
+
+        return list(targets.values())
 
     def _extract_insights(self, content: str) -> list:
         """Extract key insights from report content."""

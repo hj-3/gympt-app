@@ -26,7 +26,7 @@ export default function Home() {
 
         {/* CTA Button */}
         {user ? (
-          <Link href="/session">
+          <Link href="/workout">
             <Button className="w-full h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg">
               운동 시작하기
               <ArrowRightIcon className="w-5 h-5 ml-2" />

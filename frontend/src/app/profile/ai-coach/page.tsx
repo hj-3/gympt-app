@@ -11,8 +11,15 @@ import {
   FireIcon,
   ChartBarIcon,
   LightBulbIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+
+interface TargetExercise {
+  exercise: string;
+  sets: number;
+  reps: number;
+}
 
 interface Recommendation {
   id?: string;
@@ -22,6 +29,31 @@ interface Recommendation {
   createdAt: string;
   goal?: string;
   fitnessLevel?: string;
+  targetExercises?: TargetExercise[];
+}
+
+// KVS-trackable exercise key -> 한국어 라벨 (/workout 과 동일)
+const EXERCISE_LABELS: Record<string, string> = {
+  squat: '스쿼트',
+  pushup: '푸시업',
+  lunge: '런지',
+  plank: '플랭크',
+};
+
+// DB에 JSON 문자열로 저장된 target_exercises 를 파싱.
+// KVS 추적 가능한 운동(EXERCISE_LABELS)만 통과시킨다.
+function parseTargetExercises(raw: unknown): TargetExercise[] {
+  if (!raw) return [];
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(
+      (t: any) =>
+        t && EXERCISE_LABELS[t.exercise] && t.sets > 0 && t.reps > 0
+    );
+  } catch {
+    return [];
+  }
 }
 
 export default function AICoachPage() {
@@ -58,6 +90,7 @@ export default function AICoachPage() {
           createdAt: rec.createdAt,
           goal: rec.goal,
           fitnessLevel: rec.fitnessLevel,
+          targetExercises: parseTargetExercises(rec.targetExercises),
         }));
         setRecommendations(history);
       }
@@ -285,6 +318,7 @@ export default function AICoachPage() {
 }
 
 function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+  const router = useRouter();
   const categoryIcons: Record<string, any> = {
     workout: FireIcon,
     posture: ChartBarIcon,
@@ -292,6 +326,17 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
   };
 
   const Icon = categoryIcons[recommendation.category] || LightBulbIcon;
+  const targets = recommendation.targetExercises ?? [];
+
+  const startWorkout = (t: TargetExercise) => {
+    const params = new URLSearchParams({
+      exercise: t.exercise,
+      sets: String(t.sets),
+      reps: String(t.reps),
+    });
+    if (recommendation.id) params.set('recommendationId', recommendation.id);
+    router.push(`/workout?${params.toString()}`);
+  };
 
   return (
     <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-blue-100">
@@ -306,6 +351,28 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
           <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
             {recommendation.content}
           </p>
+
+          {/* KVS 추적 가능한 추천 운동 — 목표 세트×횟수로 바로 시작 */}
+          {targets.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-medium text-gray-500 mb-2">
+                추천 운동 바로 시작하기
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {targets.map((t, i) => (
+                  <button
+                    key={i}
+                    onClick={() => startWorkout(t)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    <PlayIcon className="w-4 h-4" />
+                    {EXERCISE_LABELS[t.exercise]} {t.sets}세트 × {t.reps}회
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-gray-400 mt-3">
             {new Date(recommendation.createdAt).toLocaleDateString('ko-KR')}
           </p>

@@ -23,6 +23,7 @@ public class WorkoutRecommendationDto {
     private String injuriesOrLimitations;
     private String modelUsed;
     private String sessionId;
+    private String targetExercises;
     private Double height;
     private Double weight;
     private Double bodyFat;

@@ -27,16 +27,16 @@ class FeedbackService:
         issues = analysis.get("issues", [])
         
         if score >= 9.0:
-            overall = "Excellent form! Keep it up."
+            overall = "완벽한 자세입니다! 그대로 유지하세요."
             priority = "maintain"
         elif score >= 7.0:
-            overall = "Good form with minor areas to improve."
+            overall = "좋은 자세입니다. 약간의 개선이 필요합니다."
             priority = "optimize"
         elif score >= 5.0:
-            overall = "Form needs attention to prevent injury."
+            overall = "부상 예방을 위해 자세 교정이 필요합니다."
             priority = "correct"
         else:
-            overall = "Stop and review form immediately."
+            overall = "동작을 멈추고 자세를 점검하세요."
             priority = "urgent"
         
         # Extract corrections from issues

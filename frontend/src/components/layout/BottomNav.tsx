@@ -18,7 +18,7 @@ import {
 
 const navItems = [
   { href: '/', label: '홈', icon: HomeIcon, activeIcon: HomeIconSolid },
-  { href: '/session', label: '운동 시작', icon: PlayIcon, activeIcon: PlayIconSolid },
+  { href: '/workout', label: '운동 시작', icon: PlayIcon, activeIcon: PlayIconSolid },
   { href: '/dashboard', label: '대시보드', icon: ChartBarIcon, activeIcon: ChartBarIconSolid },
   { href: '/profile', label: '내 정보', icon: UserCircleIcon, activeIcon: UserCircleIconSolid },
 ];

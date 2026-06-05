@@ -29,8 +29,8 @@ class PushupRule:
             issues.append({
                 "type": "elbow_flare",
                 "severity": "medium",
-                "description": "Elbows are flaring out too wide",
-                "correction": "Keep elbows closer to body, around 45 degrees"
+                "description": "팔꿈치가 너무 벌어져 있습니다",
+                "correction": "팔꿈치를 몸쪽으로 붙여 약 45도를 유지하세요"
             })
             score -= 2.0
         
@@ -40,8 +40,8 @@ class PushupRule:
             issues.append({
                 "type": "hip_sag",
                 "severity": "high",
-                "description": "Hips are sagging",
-                "correction": "Engage core, maintain straight line from head to heels"
+                "description": "엉덩이가 처지고 있습니다",
+                "correction": "코어에 힘을 주고 머리부터 발뒤꿈치까지 일직선을 유지하세요"
             })
             score -= 3.0
         
@@ -51,8 +51,8 @@ class PushupRule:
             issues.append({
                 "type": "insufficient_rom",
                 "severity": "low",
-                "description": "Not lowering chest close enough to ground",
-                "correction": "Lower until chest nearly touches ground"
+                "description": "가슴을 충분히 낮추지 않았습니다",
+                "correction": "가슴이 바닥에 거의 닿을 때까지 내려가세요"
             })
             score -= 1.5
         

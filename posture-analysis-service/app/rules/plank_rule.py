@@ -42,16 +42,16 @@ class PlankRule:
             issues.append({
                 "type": "hip_sag",
                 "severity": "high",
-                "description": "Hips are sagging downward",
-                "correction": "Engage core muscles and lift hips to align with shoulders"
+                "description": "엉덩이가 아래로 처지고 있습니다",
+                "correction": "코어에 힘을 주고 엉덩이를 어깨 높이에 맞춰 올리세요"
             })
             score -= 3.0
         elif hip_sag == "piking":
             issues.append({
                 "type": "hip_pike",
                 "severity": "medium",
-                "description": "Hips are too high (piking)",
-                "correction": "Lower hips to form straight line from head to heels"
+                "description": "엉덩이가 너무 높습니다",
+                "correction": "엉덩이를 낮춰 머리부터 발뒤꿈치까지 일직선을 만드세요"
             })
             score -= 2.0
 
@@ -61,8 +61,8 @@ class PlankRule:
             issues.append({
                 "type": "shoulder_misalignment",
                 "severity": "medium",
-                "description": "Shoulders not aligned over elbows",
-                "correction": "Position shoulders directly above elbows"
+                "description": "어깨가 팔꿈치 위에 정렬되지 않았습니다",
+                "correction": "어깨를 팔꿈치 바로 위에 위치시키세요"
             })
             score -= 2.0
 
@@ -72,8 +72,8 @@ class PlankRule:
             issues.append({
                 "type": "poor_core_engagement",
                 "severity": "high",
-                "description": "Core appears disengaged",
-                "correction": "Tighten abdominal muscles and maintain neutral spine"
+                "description": "코어에 힘이 빠져 있습니다",
+                "correction": "복근에 힘을 주고 척추를 중립으로 유지하세요"
             })
             score -= 3.0
 
@@ -83,8 +83,8 @@ class PlankRule:
             issues.append({
                 "type": "head_misalignment",
                 "severity": "low",
-                "description": "Head is not in neutral position",
-                "correction": "Keep neck neutral, gaze toward floor"
+                "description": "머리가 중립 위치에 있지 않습니다",
+                "correction": "목을 중립으로 유지하고 시선은 바닥을 향하세요"
             })
             score -= 1.0
 

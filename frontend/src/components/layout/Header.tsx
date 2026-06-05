@@ -48,9 +48,9 @@ export function Header() {
                   Dashboard
                 </Link>
                 <Link
-                  href="/session"
+                  href="/workout"
                   className={`px-3 py-2 rounded-lg ${
-                    pathname === '/session'
+                    pathname === '/workout'
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}

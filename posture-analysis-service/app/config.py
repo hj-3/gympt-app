@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     
     # Hardware
     enable_gpu: bool = False
-    model_type: str = "mock"  # mock, mediapipe, custom
+    model_type: str = "mediapipe"  # mediapipe (real pose), mock (tests only)
     
     # AWS
     aws_region: str = "ap-northeast-2"

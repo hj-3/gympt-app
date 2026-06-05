@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { usePostureAnalysis } from '@/hooks/usePostureAnalysis';
 import { VideoFeed } from '@/components/workout/VideoFeed';
@@ -18,8 +18,9 @@ const EXERCISE_NAMES: Record<string, string> = {
   plank: '플랭크',
 };
 
-export default function WorkoutPage() {
+function WorkoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [exercise, setExercise] = useState('squat');
@@ -27,6 +28,24 @@ export default function WorkoutPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scoreHistoryRef = useRef<number[]>([]);
+
+  // AI 추천에서 넘어온 목표 (세트×횟수). 없으면 자유 운동 모드.
+  const [targetSets, setTargetSets] = useState<number | null>(null);
+  const [targetReps, setTargetReps] = useState<number | null>(null);
+  const recommendationIdRef = useRef<string | null>(null);
+
+  // 추천 링크의 쿼리 파라미터(exercise/sets/reps/recommendationId) 반영
+  useEffect(() => {
+    const qExercise = searchParams.get('exercise');
+    const qSets = searchParams.get('sets');
+    const qReps = searchParams.get('reps');
+    const qRecId = searchParams.get('recommendationId');
+
+    if (qExercise && EXERCISE_NAMES[qExercise]) setExercise(qExercise);
+    if (qSets) setTargetSets(parseInt(qSets, 10) || null);
+    if (qReps) setTargetReps(parseInt(qReps, 10) || null);
+    if (qRecId) recommendationIdRef.current = qRecId;
+  }, [searchParams]);
 
   const {
     connect,
@@ -36,18 +55,19 @@ export default function WorkoutPage() {
     landmarks,
     repCount,
     isConnected,
+    poseDetected,
   } = usePostureAnalysis();
 
   useEffect(() => {
     if (!isAuthenticated) router.push('/login');
   }, [isAuthenticated, router]);
 
-  // Accumulate scores for report
+  // Accumulate scores for report — only when a real pose is detected
   useEffect(() => {
-    if (analysis && isSessionActive) {
+    if (analysis && isSessionActive && poseDetected) {
       scoreHistoryRef.current.push(analysis.formScore);
     }
-  }, [analysis, isSessionActive]);
+  }, [analysis, isSessionActive, poseDetected]);
 
   // Session timer
   useEffect(() => {
@@ -68,9 +88,12 @@ export default function WorkoutPage() {
     scoreHistoryRef.current = [];
 
     try {
+      // 실제 자세 분석 서버(WebSocket)에 연결. 연결되어야만 세션 시작.
       await connect(sid);
     } catch {
-      // simulation mode handles this
+      toast.error('자세 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      setSessionId(null);
+      return;
     }
 
     setIsSessionActive(true);
@@ -84,8 +107,16 @@ export default function WorkoutPage() {
     const scores = scoreHistoryRef.current;
     const avgScore = scores.length > 0
       ? scores.reduce((a, b) => a + b, 0) / scores.length
-      : 82;
+      : 0;
     const durationMin = Math.max(1, Math.round(elapsedSeconds / 60));
+
+    // AI 추천 목표가 있으면 진행도 계산 (KVS가 센 실제 횟수 / 목표 총 횟수)
+    const hasTarget = targetSets != null && targetReps != null;
+    const targetTotalReps = hasTarget ? targetSets! * targetReps! : null;
+    const progressPercent = targetTotalReps
+      ? Math.min(100, Math.round((repCount / targetTotalReps) * 100))
+      : null;
+    const completedSets = targetReps ? Math.floor(repCount / targetReps) : null;
 
     // Build session report and save to localStorage
     const sessionReport = {
@@ -96,6 +127,14 @@ export default function WorkoutPage() {
       totalReps: repCount,
       durationSeconds: elapsedSeconds,
       avgScore,
+      // 추천 목표 및 진행도 (없으면 null)
+      recommendationId: recommendationIdRef.current,
+      target: hasTarget
+        ? { sets: targetSets, reps: targetReps, totalReps: targetTotalReps }
+        : null,
+      progress: progressPercent != null
+        ? { percent: progressPercent, completedSets, completedReps: repCount }
+        : null,
       summary: {
         totalDuration: durationMin,
         exercisesCompleted: 1,
@@ -104,8 +143,11 @@ export default function WorkoutPage() {
       exercises: [
         {
           name: EXERCISE_NAMES[exercise] || exercise,
-          sets: Math.max(1, Math.floor(repCount / 10)),
+          sets: hasTarget ? completedSets : Math.max(1, Math.floor(repCount / 10)),
           reps: repCount,
+          targetSets: targetSets,
+          targetReps: targetReps,
+          progressPercent,
           duration: durationMin,
           postureScore: avgScore,
           notes: avgScore >= 85
@@ -116,7 +158,9 @@ export default function WorkoutPage() {
         },
       ],
       insights: [
-        `총 ${repCount}회의 ${EXERCISE_NAMES[exercise] || exercise}를 완료했습니다.`,
+        hasTarget
+          ? `목표 ${targetSets}세트 × ${targetReps}회(총 ${targetTotalReps}회) 중 ${repCount}회 완료 (달성률 ${progressPercent}%).`
+          : `총 ${repCount}회의 ${EXERCISE_NAMES[exercise] || exercise}를 완료했습니다.`,
         `평균 자세 점수 ${avgScore.toFixed(1)}점으로 ${avgScore >= 80 ? '우수한' : '양호한'} 수준입니다.`,
         `${durationMin}분 동안 지속적으로 운동했습니다.`,
       ],
@@ -176,6 +220,18 @@ export default function WorkoutPage() {
           <h2 className="text-2xl font-semibold mb-4">운동 준비</h2>
           <p className="text-gray-600 mb-6">운동을 선택하고 시작 버튼을 눌러주세요</p>
 
+          {/* AI 추천 목표 배지 */}
+          {targetSets != null && targetReps != null && (
+            <div className="mb-6 mx-auto max-w-xs bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <p className="text-sm text-blue-700 font-medium">
+                🎯 AI 추천 목표: {EXERCISE_NAMES[exercise]} {targetSets}세트 × {targetReps}회
+              </p>
+              <p className="text-xs text-blue-500 mt-1">
+                총 {targetSets * targetReps}회 — KVS가 진행도를 추적합니다
+              </p>
+            </div>
+          )}
+
           <div className="mb-8">
             <label className="block text-sm font-medium text-gray-700 mb-2">운동 선택</label>
             <select
@@ -230,6 +286,24 @@ export default function WorkoutPage() {
           {/* Right: stats panel */}
           <div className="space-y-4">
             <RepCounter count={repCount} exercise={exercise} />
+
+            {/* AI 추천 목표 진행도 */}
+            {targetSets != null && targetReps != null && (
+              <Card>
+                <h3 className="font-semibold mb-2">목표 진행도</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  {repCount} / {targetSets * targetReps}회
+                  ({Math.min(100, Math.round((repCount / (targetSets * targetReps)) * 100))}%)
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, Math.round((repCount / (targetSets * targetReps)) * 100))}%` }}
+                  />
+                </div>
+              </Card>
+            )}
+
             <PostureFeedback analysis={analysis} />
 
             <Card>
@@ -252,5 +326,17 @@ export default function WorkoutPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WorkoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    }>
+      <WorkoutContent />
+    </Suspense>
   );
 }

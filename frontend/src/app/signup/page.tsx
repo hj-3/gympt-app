@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/store';
 import { confirmSignUp } from 'aws-amplify/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { apiClient } from '@/lib/api-client';
 import toast from 'react-hot-toast';
 
 export default function SignupPage() {
@@ -18,6 +19,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | ''>('');
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
@@ -28,6 +31,8 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     phoneNumber: '',
+    age: '',
+    gender: '',
   });
 
   const validateForm = () => {
@@ -38,6 +43,8 @@ export default function SignupPage() {
       password: '',
       confirmPassword: '',
       phoneNumber: '',
+      age: '',
+      gender: '',
     };
 
     if (!/^[a-z0-9_]+$/.test(username) || username.length < 3) {
@@ -69,6 +76,15 @@ export default function SignupPage() {
 
     if (!phoneNumber) {
       newErrors.phoneNumber = '전화번호는 필수입니다';
+    }
+
+    const ageNum = Number(age);
+    if (!age || !Number.isInteger(ageNum) || ageNum < 13 || ageNum > 120) {
+      newErrors.age = '나이는 13세 이상 120세 이하로 입력해주세요';
+    }
+
+    if (!gender) {
+      newErrors.gender = '성별을 선택해주세요';
     }
 
     setErrors(newErrors);
@@ -125,6 +141,19 @@ export default function SignupPage() {
 
       // Auto login after confirmation
       await login(username, password);
+
+      // Save one-time profile info (age/gender) to DB.
+      // The DB user row is created on first authenticated request, so this runs after login.
+      try {
+        await apiClient.updateCurrentUserProfile({
+          age: Number(age),
+          gender,
+        });
+      } catch (profileError) {
+        console.error('Failed to save age/gender to profile:', profileError);
+        // Non-blocking: 프로필 저장 실패해도 가입 흐름은 계속 진행
+      }
+
       router.push('/dashboard');
     } catch (error: any) {
       let errorMessage = '인증에 실패했습니다';
@@ -206,6 +235,48 @@ export default function SignupPage() {
             error={errors.name}
             required
           />
+
+          <Input
+            label="나이"
+            type="number"
+            min={13}
+            max={120}
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            placeholder="예: 28"
+            error={errors.age}
+            helperText="가입 시 1회만 입력합니다 (운동 추천에 활용)"
+            required
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              성별 <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'MALE', label: '남성' },
+                { value: 'FEMALE', label: '여성' },
+                { value: 'OTHER', label: '기타' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGender(opt.value as 'MALE' | 'FEMALE' | 'OTHER')}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    gender === opt.value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {errors.gender && (
+              <p className="mt-1 text-sm text-red-500">{errors.gender}</p>
+            )}
+          </div>
 
           <Input
             label="이메일"

@@ -55,6 +55,10 @@ public class WorkoutRecommendation {
     @Column(name = "session_id")
     private String sessionId;
 
+    // Structured KVS-trackable targets as JSON: [{"exercise":"squat","sets":3,"reps":12}]
+    @Column(name = "target_exercises", columnDefinition = "TEXT")
+    private String targetExercises;
+
     // Body profile snapshot at time of recommendation
     @Column(name = "height")
     private Double height;

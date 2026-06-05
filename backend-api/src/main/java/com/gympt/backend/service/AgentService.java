@@ -1,5 +1,6 @@
 package com.gympt.backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gympt.backend.dto.WorkoutRecommendationDto;
 import com.gympt.backend.domain.BodyProfile;
 import com.gympt.backend.entity.WorkoutRecommendation;
@@ -32,6 +33,7 @@ public class AgentService {
     private final UserRepository userRepository;
     private final BodyProfileRepository bodyProfileRepository;
     private final WorkoutRecommendationRepository workoutRecommendationRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.services.agent.base-url}")
     private String agentServiceUrl;
@@ -73,6 +75,17 @@ public class AgentService {
 
             // Save recommendation to database
             if (response != null && response.containsKey("recommendation")) {
+                // Serialize structured KVS targets to JSON for storage
+                String targetExercisesJson = null;
+                Object targetExercises = response.get("target_exercises");
+                if (targetExercises != null) {
+                    try {
+                        targetExercisesJson = objectMapper.writeValueAsString(targetExercises);
+                    } catch (Exception e) {
+                        log.warn("Failed to serialize target_exercises: {}", e.getMessage());
+                    }
+                }
+
                 WorkoutRecommendation recommendation = WorkoutRecommendation.builder()
                         .user(user)
                         .recommendation((String) response.get("recommendation"))
@@ -85,6 +98,7 @@ public class AgentService {
                         .injuriesOrLimitations((String) request.get("injuries_or_limitations"))
                         .modelUsed((String) response.get("model_used"))
                         .sessionId((String) response.get("session_id"))
+                        .targetExercises(targetExercisesJson)
                         .height(bodyProfile != null ? toDouble(bodyProfile.getHeight()) : null)
                         .weight(bodyProfile != null ? toDouble(bodyProfile.getWeight()) : null)
                         .bodyFat(bodyProfile != null ? toDouble(bodyProfile.getBodyFat()) : null)
@@ -138,6 +152,7 @@ public class AgentService {
                 .injuriesOrLimitations(recommendation.getInjuriesOrLimitations())
                 .modelUsed(recommendation.getModelUsed())
                 .sessionId(recommendation.getSessionId())
+                .targetExercises(recommendation.getTargetExercises())
                 .height(recommendation.getHeight())
                 .weight(recommendation.getWeight())
                 .bodyFat(recommendation.getBodyFat())

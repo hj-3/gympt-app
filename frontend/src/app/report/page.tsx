@@ -105,7 +105,7 @@ export default function ReportListPage() {
               <div className="text-center py-12">
                 <p className="text-gray-500 mb-4">아직 운동 기록이 없습니다</p>
                 <button
-                  onClick={() => router.push('/session')}
+                  onClick={() => router.push('/workout')}
                   className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                 >
                   운동 시작하기

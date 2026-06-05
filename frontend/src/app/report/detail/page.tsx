@@ -132,6 +132,34 @@ function ReportDetailContent() {
               </div>
             </div>
 
+            {/* 추천 목표 진행도 */}
+            {report.target && report.progress && (
+              <div className="bg-white rounded-3xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">추천 목표 달성도</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">
+                    목표 {report.target.sets}세트 × {report.target.reps}회 (총 {report.target.totalReps}회)
+                  </span>
+                  <span className="text-sm font-bold text-blue-600">
+                    {report.progress.percent}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      report.progress.percent >= 100 ? 'bg-green-500' : 'bg-blue-600'
+                    }`}
+                    style={{ width: `${report.progress.percent}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-700">
+                  {report.progress.percent >= 100
+                    ? `🎉 목표를 모두 달성했습니다! 총 ${report.progress.completedReps}회 완료`
+                    : `${report.progress.completedReps}회 완료 — 목표까지 ${report.target.totalReps - report.progress.completedReps}회 남았습니다`}
+                </p>
+              </div>
+            )}
+
             {/* Exercise Details */}
             {report.exercises?.length > 0 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm">

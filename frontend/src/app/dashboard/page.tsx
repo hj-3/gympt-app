@@ -93,7 +93,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Action */}
-          <Link href="/session">
+          <Link href="/workout">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-6 mb-6 shadow-lg cursor-pointer hover:shadow-xl transition-shadow">
               <div className="flex items-center justify-between text-white">
                 <div>

@@ -29,8 +29,8 @@ class SquatRule:
             issues.append({
                 "type": "knee_valgus",
                 "severity": "medium",
-                "description": "Knees are caving inward",
-                "correction": "Push knees outward, align with toes"
+                "description": "무릎이 안쪽으로 모이고 있습니다",
+                "correction": "무릎을 바깥으로 밀어 발끝 방향과 정렬하세요"
             })
             score -= 2.0
         
@@ -40,8 +40,8 @@ class SquatRule:
             issues.append({
                 "type": "insufficient_depth",
                 "severity": "low",
-                "description": "Not reaching parallel depth",
-                "correction": "Lower hips until thighs are parallel to ground"
+                "description": "충분한 깊이까지 내려가지 않았습니다",
+                "correction": "허벅지가 바닥과 평행이 될 때까지 엉덩이를 낮추세요"
             })
             score -= 1.5
         
@@ -51,8 +51,8 @@ class SquatRule:
             issues.append({
                 "type": "back_rounding",
                 "severity": "high",
-                "description": "Lower back is rounding",
-                "correction": "Keep chest up, maintain neutral spine"
+                "description": "허리가 굽고 있습니다",
+                "correction": "가슴을 펴고 척추를 중립으로 유지하세요"
             })
             score -= 3.0
         
