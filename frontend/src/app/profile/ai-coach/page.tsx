@@ -39,10 +39,10 @@ export default function AICoachPage() {
     injuries_or_limitations: '',
   });
 
-  // Load recommendation history on mount
+  // Load recommendation history once user auth is confirmed
   useEffect(() => {
-    loadRecommendations();
-  }, []);
+    if (user) loadRecommendations();
+  }, [user?.userId]);
 
   const loadRecommendations = async () => {
     try {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 import { ChevronLeftIcon, ChartBarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api-client';
 
@@ -17,12 +18,13 @@ interface BodyData {
 
 export default function BodyInfoPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [bodyData, setBodyData] = useState<BodyData | null>(null);
 
   useEffect(() => {
-    loadLatestBodyProfile();
-  }, []);
+    if (user) loadLatestBodyProfile();
+  }, [user?.userId]);
 
   const loadLatestBodyProfile = async () => {
     setLoading(true);
