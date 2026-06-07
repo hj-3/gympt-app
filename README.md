@@ -150,11 +150,14 @@ docker push 337112169365.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend
 
 1. 테스트 및 린트 실행
 2. Docker 이미지 빌드
-3. ECR에 `github.run_number-short_sha` 형식의 새 태그로 푸시
-4. `gympt-gitops` `main` 브랜치를 checkout
-5. `charts/<service>/values-dev.yaml` 또는 `values-prod.yaml`의 `.image.tag` 업데이트
-6. PR 생성 없이 `gympt-gitops` `main`에 직접 커밋 및 푸시
-7. ArgoCD가 Git 변경사항을 감지해 자동 배포
+3. **Trivy 이미지 취약점 스캔** (HIGH/CRITICAL, 리포트 모드 — 빌드 로그에 표시, 빌드는 차단하지 않음)
+4. ECR에 `github.run_number-short_sha` 형식의 새 태그로 푸시 (ECR scan-on-push로 저장 단계 2차 스캔)
+5. `gympt-gitops` `main` 브랜치를 checkout
+6. `charts/<service>/values-dev.yaml` 또는 `values-prod.yaml`의 `.image.tag` 업데이트
+7. PR 생성 없이 `gympt-gitops` `main`에 직접 커밋 및 푸시
+8. ArgoCD가 Git 변경사항을 감지해 자동 배포
+
+> 이미지 취약점은 **빌드 단계 Trivy(배포 전) + ECR scan-on-push(저장 후)** 로 이중 스캔합니다. Trivy는 현재 리포트 모드(`exit-code: 0`)이며, 구축 안정화 후 차단 모드(`'1'`)로 강화할 수 있습니다.
 
 ### 배포 트리거
 

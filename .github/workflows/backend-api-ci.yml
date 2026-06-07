@@ -87,16 +87,31 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
 
-      - name: Build and push
+      - name: Build image
+        id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.vars.outputs.image-tag }}
           ENVIRONMENT: ${{ steps.env.outputs.environment }}
         run: |
           cd backend-api
-          docker build -t ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG} .
-          docker push ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          echo "Built and pushed: ${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          IMAGE_URI="${ECR_REGISTRY}/gympt-${ENVIRONMENT}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker build -t "${IMAGE_URI}" .
+          echo "image-uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+
+      - name: Trivy 취약점 스캔 (리포트 전용)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build.outputs.image-uri }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'   # 리포트만 — 취약점이 있어도 빌드를 실패시키지 않음(구축 단계). 안정화 후 '1'로 강화
+
+      - name: Push image
+        run: |
+          docker push ${{ steps.build.outputs.image-uri }}
+          echo "Pushed: ${{ steps.build.outputs.image-uri }}"
 
   update-gitops:
     name: Update GitOps
