@@ -89,6 +89,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.GITOPS_REPO }}
+          ref: main
           token: ${{ secrets.GITOPS_PAT }}
       - name: Install yq
         run: |
@@ -104,16 +105,20 @@ jobs:
           echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
           yq -i '.image.tag = strenv(IMAGE_TAG)' "${VALUES_FILE}"
 
-      - name: Create GitOps update PR
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITOPS_PAT }}
-          branch: ci/update-agent-service-${{ needs.build-and-push.outputs.environment }}-${{ needs.build-and-push.outputs.image-tag }}
-          delete-branch: true
-          commit-message: "ci: update agent-service ${{ needs.build-and-push.outputs.environment }} image to ${{ needs.build-and-push.outputs.image-tag }}"
-          title: "ci: update agent-service ${{ needs.build-and-push.outputs.environment }} image"
-          body: |
-            ## Summary
-            - Update agent-service ${{ needs.build-and-push.outputs.environment }} image tag to `${{ needs.build-and-push.outputs.image-tag }}`
-            - Triggered by hj-3/gympt-app@${{ github.sha }}
+      - name: Commit and push GitOps update
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          ENVIRONMENT: ${{ needs.build-and-push.outputs.environment }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          if git diff --quiet; then
+            echo "No GitOps changes to commit"
+            exit 0
+          fi
+
+          git add "charts/agent-service/values-${ENVIRONMENT}.yaml"
+          git commit -m "ci: update agent-service ${ENVIRONMENT} image to ${IMAGE_TAG}"
+          git pull --rebase origin main
+          git push origin main
