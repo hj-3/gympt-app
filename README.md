@@ -135,22 +135,39 @@ docker push 337112169365.dkr.ecr.ap-northeast-2.amazonaws.com/gympt-prod/backend
 
 ### GitHub Actions 워크플로우
 
-`.github/workflows/deploy-*.yml` 파일이 다음을 처리합니다:
-1. Docker 이미지 빌드
-2. ECR에 푸시
-3. gympt-gitops에서 이미지 태그 업데이트
-4. ArgoCD가 자동으로 배포
+서비스별 CI workflow가 다음을 처리합니다:
+
+| 서비스 | Workflow |
+|---------|----------|
+| backend-api | `.github/workflows/backend-api-ci.yml` |
+| agent-service | `.github/workflows/agent-service-ci.yml` |
+| posture-analysis-service | `.github/workflows/posture-analysis-service-ci.yml` |
+| report-service | `.github/workflows/report-service-ci.yml` |
+| kvs-consumer-service | `.github/workflows/kvs-consumer-service-ci.yml` |
+| remediation-worker | `.github/workflows/remediation-worker-ci.yml` |
+
+배포 흐름:
+
+1. 테스트 및 린트 실행
+2. Docker 이미지 빌드
+3. ECR에 `github.run_number-short_sha` 형식의 새 태그로 푸시
+4. `gympt-gitops` `main` 브랜치를 checkout
+5. `charts/<service>/values-dev.yaml` 또는 `values-prod.yaml`의 `.image.tag` 업데이트
+6. PR 생성 없이 `gympt-gitops` `main`에 직접 커밋 및 푸시
+7. ArgoCD가 Git 변경사항을 감지해 자동 배포
 
 ### 배포 트리거
 
 ```bash
-# main/develop 브랜치에 커밋 및 푸시
+# main/dev 브랜치에 커밋 및 푸시
 git add .
 git commit -m "feat: 새로운 기능"
 git push origin main
 
 # GitHub Actions가 자동으로 빌드 및 배포
 ```
+
+`main` 브랜치는 prod values를, `dev` 브랜치는 dev values를 갱신합니다. `gympt-gitops` `main` 브랜치 direct push가 branch protection으로 막혀 있으면 `GITOPS_PAT`에 bypass 권한을 부여하거나 보호 규칙을 조정해야 합니다.
 
 ---
 
@@ -284,4 +301,4 @@ curl http://localhost:8003/health
 ---
 
 **저장소**: https://github.com/hj-3/gympt-app  
-**최종 업데이트**: 2026-06-02
+**최종 업데이트**: 2026-06-07
