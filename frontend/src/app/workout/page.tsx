@@ -183,8 +183,11 @@ function WorkoutContent() {
         ],
     };
 
+    // Use RDS UUID as localStorage key if available (enables deduplication on dashboard)
+    const persistKey = rdsSessionIdRef.current || sessionId;
+    const persistedReport = { ...sessionReport, sessionId: persistKey };
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`gympt_session_${sessionId}`, JSON.stringify(sessionReport));
+      localStorage.setItem(`gympt_session_${persistKey}`, JSON.stringify(persistedReport));
     }
 
     // Mark session COMPLETED in RDS so it appears on the dashboard
@@ -197,7 +200,7 @@ function WorkoutContent() {
     toast.success('운동이 완료되었습니다! 리포트를 생성합니다...');
 
     setTimeout(() => {
-      router.push(`/report/detail?sessionId=${sessionId}`);
+      router.push(`/report/detail?sessionId=${persistKey}`);
     }, 1200);
   };
 
