@@ -83,35 +83,38 @@ class SquatRule:
         return left_distance < threshold or right_distance < threshold
     
     def _check_depth(self, keypoints: Dict) -> bool:
-        """Check if squat depth is sufficient."""
+        """Check if squat depth is sufficient — only relevant when in the squat position."""
         left_hip = keypoints.get("left_hip", {})
         left_knee = keypoints.get("left_knee", {})
-        
+
         if not left_hip or not left_knee:
             return False
-        
-        # Check if hip is below knee (sufficient depth)
+
         hip_y = left_hip.get("y", 0)
         knee_y = left_knee.get("y", 0)
-        
-        # If hip Y is less than knee Y (higher in image), depth is insufficient
-        return hip_y < knee_y + 0.05
-    
+
+        # Only flag when the person is clearly in a squat (hip near knee height)
+        # and hip is still above the knee — i.e. not going deep enough.
+        # Threshold: hip must be within 0.15 of knee before we expect full depth.
+        in_squat_position = hip_y >= knee_y - 0.15
+        insufficient_depth = hip_y < knee_y + 0.05
+        return in_squat_position and insufficient_depth
+
     def _check_back_rounding(self, keypoints: Dict) -> bool:
-        """Check if back is rounding."""
+        """Check if back is rounding during the squat."""
         left_shoulder = keypoints.get("left_shoulder", {})
         left_hip = keypoints.get("left_hip", {})
         left_knee = keypoints.get("left_knee", {})
-        
+
         if not all([left_shoulder, left_hip, left_knee]):
             return False
-        
-        # Calculate torso angle
+
+        # Angle at the hip joint (shoulder–hip–knee).
+        # Standing straight: ~180°.  Severe forward lean: < 100°.
+        # We only flag genuine rounding — not the normal upright stance.
         angle = self.estimator.calculate_angle(
             left_shoulder,
             left_hip,
             left_knee
         )
-        
-        # If torso angle is too acute, back is rounding
-        return angle < 70 or angle > 110
+        return angle < 100

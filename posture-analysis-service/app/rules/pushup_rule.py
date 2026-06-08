@@ -65,23 +65,22 @@ class PushupRule:
         }
     
     def _check_elbow_flare(self, keypoints: Dict) -> bool:
-        """Check if elbows are flaring too wide."""
+        """Check if elbows are flaring outward at the bottom of the pushup."""
         left_shoulder = keypoints.get("left_shoulder", {})
         left_elbow = keypoints.get("left_elbow", {})
         left_wrist = keypoints.get("left_wrist", {})
-        
+
         if not all([left_shoulder, left_elbow, left_wrist]):
             return False
-        
-        # Calculate elbow angle
-        angle = self.estimator.calculate_angle(
-            left_shoulder,
-            left_elbow,
-            left_wrist
-        )
-        
-        # If angle is too wide, elbows are flaring
-        return angle > 75
+
+        # Only check elbow flare when in the DOWN position (elbow below shoulder).
+        # In MediaPipe coords y increases downward, so elbow_y > shoulder_y means down.
+        if left_elbow.get("y", 0) < left_shoulder.get("y", 0) + 0.05:
+            return False  # Not in the down position yet — no penalty
+
+        # Horizontal distance from shoulder to elbow; large value = flare
+        horizontal_flare = abs(left_elbow.get("x", 0) - left_shoulder.get("x", 0))
+        return horizontal_flare > 0.15
     
     def _check_hip_sag(self, keypoints: Dict) -> bool:
         """Check if hips are sagging."""

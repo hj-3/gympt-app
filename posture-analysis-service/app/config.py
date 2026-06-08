@@ -59,22 +59,32 @@ class Settings(BaseSettings):
     max_websocket_connections: int = 100
     log_interval_seconds: int = 5  # DynamoDB logging interval
 
-    # Rep Counter Thresholds
+    # Rep Counter Thresholds — angle-based (degrees), must match RepCounter.DEFAULT_THRESHOLDS
     rep_counter_thresholds: dict = {
         "squat": {
-            "down_threshold": 0.15,
-            "up_threshold": 0.25,
-            "hysteresis": 0.05,
+            "down_threshold": 100,   # knee angle below this → squatting
+            "up_threshold":   160,   # knee angle above this → standing
+            "hysteresis":      10,
+        },
+        "lunge": {
+            "down_threshold": 100,
+            "up_threshold":   160,
+            "hysteresis":      10,
         },
         "pushup": {
-            "down_threshold": 0.10,
-            "up_threshold": 0.20,
-            "hysteresis": 0.03,
+            "down_threshold":  90,   # elbow angle below this → chest near floor
+            "up_threshold":   150,   # elbow angle above this → arms extended
+            "hysteresis":      10,
         },
         "deadlift": {
-            "down_threshold": 0.20,
-            "up_threshold": 0.35,
-            "hysteresis": 0.05,
+            "down_threshold": 100,   # hip angle below this → bent over
+            "up_threshold":   160,   # hip angle above this → standing
+            "hysteresis":      10,
+        },
+        "plank": {
+            "down_threshold": 0,
+            "up_threshold":   0,
+            "hysteresis":     0,
         },
     }
     
