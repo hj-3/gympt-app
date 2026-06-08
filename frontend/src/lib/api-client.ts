@@ -99,7 +99,16 @@ class ApiClient {
     return response.data;
   }
 
-  async completeSession(sessionId: string, data?: { totalDuration?: number; caloriesBurned?: number; notes?: string }): Promise<ApiResponse<any>> {
+  async completeSession(sessionId: string, data?: {
+    totalDuration?: number;
+    caloriesBurned?: number;
+    notes?: string;
+    exerciseType?: string;
+    exerciseName?: string;
+    totalReps?: number;
+    avgPostureScore?: number;
+    recommendationId?: string;
+  }): Promise<ApiResponse<any>> {
     const response = await this.client.post(`/api/v1/sessions/${sessionId}/complete`, data || {});
     return response.data;
   }

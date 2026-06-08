@@ -9,6 +9,30 @@ import { apiClient } from '@/lib/api-client';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
+function loadLocalReports(): any[] {
+  if (typeof window === 'undefined') return [];
+  const sessions: any[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('gympt_session_')) {
+      try {
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        if (data.completedAt) {
+          sessions.push({
+            reportId: data.sessionId || key.replace('gympt_session_', ''),
+            sessionId: data.sessionId || key.replace('gympt_session_', ''),
+            completedAt: data.completedAt,
+            summary: data.summary || { totalDuration: 0, exercisesCompleted: 1, averagePostureScore: 0 },
+          });
+        }
+      } catch { /* ignore malformed entries */ }
+    }
+  }
+  return sessions.sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
 export default function ReportListPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -18,21 +42,38 @@ export default function ReportListPage() {
   const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
-    if (user?.userId) {
-      loadReports();
-    }
+    loadReports();
   }, [user, page]);
 
   const loadReports = async () => {
-    if (!user?.userId) return;
-
     try {
       setLoading(true);
-      const response = await apiClient.getReports(user.userId, page, 10) as any;
-      if (response) {
-        setReports(response.items || []);
-        setHasMore(response.hasMore || false);
+      let merged: any[] = [];
+
+      if (user?.userId) {
+        try {
+          const response = await apiClient.getReports(user.userId, page, 10) as any;
+          if (response?.items) merged = response.items;
+          setHasMore(response?.hasMore || false);
+        } catch (error) {
+          console.warn('Failed to load reports from API:', error);
+        }
       }
+
+      // Merge with localStorage sessions (dedup by sessionId)
+      const localReports = loadLocalReports();
+      const seen = new Set(merged.map((r: any) => r.sessionId));
+      for (const lr of localReports) {
+        if (!seen.has(lr.sessionId)) {
+          merged.push(lr);
+          seen.add(lr.sessionId);
+        }
+      }
+      merged.sort(
+        (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+      );
+
+      setReports(merged);
     } catch (error) {
       console.error('Failed to load reports:', error);
       toast.error('리포트 목록을 불러오는데 실패했습니다');
@@ -72,7 +113,7 @@ export default function ReportListPage() {
                     <div className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                       <div className="flex items-center justify-between mb-2">
                         <p className="font-semibold text-gray-900">
-                          {report.summary?.exercisesCompleted || 0}개 운동 완료
+                          {report.summary?.exerciseName || `${report.summary?.exercisesCompleted || 1}개 운동`} 완료
                         </p>
                         <ChevronRightIcon className="w-5 h-5 text-gray-400" />
                       </div>
@@ -81,6 +122,11 @@ export default function ReportListPage() {
                           {new Date(report.completedAt).toLocaleDateString('ko-KR')}
                         </p>
                         <div className="flex items-center gap-3">
+                          {(report.summary?.totalReps ?? 0) > 0 && (
+                            <span className="text-green-600 font-semibold">
+                              {report.summary.totalReps}회
+                            </span>
+                          )}
                           <span className="text-blue-600 font-semibold">
                             {report.summary?.averagePostureScore?.toFixed(1) || 0}점
                           </span>

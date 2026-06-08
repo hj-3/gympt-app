@@ -192,8 +192,14 @@ function WorkoutContent() {
 
     // Mark session COMPLETED in RDS so it appears on the dashboard
     if (rdsSessionIdRef.current) {
-      apiClient.completeSession(rdsSessionIdRef.current, { totalDuration: elapsedSeconds })
-        .catch((e: any) => console.warn('Failed to complete backend session:', e));
+      apiClient.completeSession(rdsSessionIdRef.current, {
+        totalDuration: elapsedSeconds,
+        exerciseType: exercise,
+        exerciseName: EXERCISE_NAMES[exercise] || exercise,
+        totalReps: repCount,
+        avgPostureScore: Math.round(avgScore * 100) / 100,
+        ...(recommendationIdRef.current ? { recommendationId: recommendationIdRef.current } : {}),
+      }).catch((e: any) => console.warn('Failed to complete backend session:', e));
       rdsSessionIdRef.current = null;
     }
 
