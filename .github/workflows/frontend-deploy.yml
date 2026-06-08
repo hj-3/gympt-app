@@ -72,6 +72,8 @@ jobs:
           NEXT_PUBLIC_AWS_REGION: ap-northeast-2
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+          NEXT_PUBLIC_POSTURE_WS_URL: ${{ steps.env.outputs.environment == 'prod' && 'wss://posture.g2mpt.com' || 'wss://posture-dev.g2mpt.com' }}
+          NEXT_PUBLIC_WS_URL: ${{ steps.env.outputs.environment == 'prod' && 'wss://ws.g2mpt.com' || 'wss://ws-dev.g2mpt.com' }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
