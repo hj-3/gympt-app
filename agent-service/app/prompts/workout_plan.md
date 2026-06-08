@@ -37,13 +37,6 @@ You MUST ONLY recommend exercises from this list, as they are compatible with ou
 - **Planks** (front plank, side plank, plank-to-downward dog)
 - **Push-ups** (standard push-up, wide push-up, diamond push-up, decline push-up)
 - **Lunges** (forward lunge, reverse lunge, walking lunge, jumping lunge)
-- **Mountain Climbers**
-- **Burpees**
-- **High Knees**
-- **Jumping Jacks**
-- **Glute Bridges**
-- **Bird Dogs**
-- **Dead Bugs**
 
 DO NOT recommend exercises that require equipment like barbells, dumbbells, or machines. Focus exclusively on bodyweight movements that can be tracked via pose detection.
 
