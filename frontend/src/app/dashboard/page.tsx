@@ -38,6 +38,28 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId]);
 
+  const loadLocalSessions = (): any[] => {
+    if (typeof window === 'undefined') return [];
+    const sessions: any[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gympt_session_')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          if (data.completedAt) {
+            sessions.push({
+              reportId: data.sessionId || key.replace('gympt_session_', ''),
+              sessionId: data.sessionId || key.replace('gympt_session_', ''),
+              completedAt: data.completedAt,
+              summary: data.summary || { totalDuration: 0, exercisesCompleted: 1, averagePostureScore: 0 },
+            });
+          }
+        } catch { /* skip invalid entries */ }
+      }
+    }
+    return sessions.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  };
+
   const loadDashboardData = async () => {
     if (!user?.userId) return;
 
@@ -46,23 +68,37 @@ export default function DashboardPage() {
 
       // Load stats — 백엔드 StatsResponse 필드: completedSessions, totalMinutes, avgPostureScore
       const statsResponse = await apiClient.getStats(user.userId) as any;
+      const localSessions = loadLocalSessions();
+
       if (statsResponse) {
+        const localTotal = localSessions.length;
+        const localMinutes = localSessions.reduce((sum: number, s: any) => sum + (s.summary?.totalDuration || 0), 0);
         setStats({
-          totalWorkouts: statsResponse.completedSessions || 0,
-          totalMinutes: statsResponse.totalMinutes || 0,
+          totalWorkouts: (statsResponse.completedSessions || 0) + localTotal,
+          totalMinutes: (statsResponse.totalMinutes || 0) + localMinutes,
           avgScore: statsResponse.avgPostureScore || 0,
           streak: statsResponse.weeklyWorkouts || 0,
         });
       }
 
-      // Load recent reports — 백엔드: { items: [], total: 0 }
-      const reportsResponse = await apiClient.getReports(user.userId, 1, 5) as any;
-      if (reportsResponse?.items) {
-        setRecentSessions(reportsResponse.items);
-      }
+      // Load recent reports — RDS sessions merged with localStorage sessions
+      let rdsItems: any[] = [];
+      try {
+        const reportsResponse = await apiClient.getReports(user.userId, 1, 10) as any;
+        if (reportsResponse?.items) rdsItems = reportsResponse.items;
+      } catch { /* RDS may have no data yet */ }
+
+      // Merge RDS and localStorage, deduplicate by sessionId, take most recent 5
+      const rdsIds = new Set(rdsItems.map((s: any) => s.sessionId));
+      const localOnly = localSessions.filter(s => !rdsIds.has(s.sessionId));
+      const merged = [...rdsItems, ...localOnly]
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+        .slice(0, 5);
+      setRecentSessions(merged);
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
-      // 백엔드 미연결 시 에러 토스트 없이 기본값 유지
+      // 백엔드 미연결 시 localStorage 세션이라도 보여줌
+      setRecentSessions(loadLocalSessions().slice(0, 5));
     } finally {
       setLoading(false);
     }
