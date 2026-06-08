@@ -1,7 +1,9 @@
+import asyncio
 import boto3
 import json
 import logging
 from typing import Dict, Any, Optional
+from botocore.config import Config
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -23,14 +25,18 @@ class BedrockClient:
                     "aws_secret_access_key": settings.aws_secret_access_key
                 })
             
+            # read_timeout=180: Bedrock Agent streams can take 1-2 min with action groups
+            _agent_config = Config(connect_timeout=30, read_timeout=180)
             self.runtime_client = boto3.client(
                 "bedrock-runtime",
+                config=Config(connect_timeout=30, read_timeout=120),
                 **session_kwargs
             )
-            
+
             if settings.bedrock_agent_id:
                 self.agent_client = boto3.client(
                     "bedrock-agent-runtime",
+                    config=_agent_config,
                     **session_kwargs
                 )
     
@@ -122,13 +128,19 @@ class BedrockClient:
 
             logger.info("Bedrock Agent response received, processing stream...")
 
-            # Process streaming response
-            completion = ""
-            for event in response.get('completion', []):
-                if 'chunk' in event:
-                    chunk = event['chunk']
-                    if 'bytes' in chunk:
-                        completion += chunk['bytes'].decode('utf-8')
+            # Drain the synchronous event stream in a thread pool so the asyncio
+            # event loop is not blocked while waiting for the Bedrock Agent to finish.
+            def _drain_stream(resp: dict) -> str:
+                text = ""
+                for event in resp.get("completion", []):
+                    if "chunk" in event:
+                        chunk = event["chunk"]
+                        if "bytes" in chunk:
+                            text += chunk["bytes"].decode("utf-8")
+                return text
+
+            loop = asyncio.get_running_loop()
+            completion = await loop.run_in_executor(None, _drain_stream, response)
 
             logger.info(f"Bedrock Agent completion length: {len(completion)} characters")
 

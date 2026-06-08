@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 @router.post("/workout/recommend", response_model=WorkoutRecommendationResponse)
 async def recommend_workout(
     request: WorkoutRecommendationRequest,
-    x_internal_token: Optional[str] = Header(None)
+    x_internal_token: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
 ):
     """
     Generate personalized workout recommendation using AI.
@@ -31,6 +32,12 @@ async def recommend_workout(
     active_requests.inc()
 
     try:
+        # Prefer explicit X-Internal-Token; fall back to the user's Bearer token
+        # so the agent-service can call backend-api on the user's behalf.
+        effective_token = x_internal_token
+        if not effective_token and authorization and authorization.startswith("Bearer "):
+            effective_token = authorization[len("Bearer "):]
+
         # Convert request to dict for service layer; include body profile fields if provided
         workout_request = {
             "goal": request.goal.value,
@@ -48,7 +55,7 @@ async def recommend_workout(
         result = await agent_service.generate_workout_plan(
             user_id=request.user_id,
             workout_request=workout_request,
-            internal_token=x_internal_token,
+            internal_token=effective_token,
             use_cache=True
         )
 

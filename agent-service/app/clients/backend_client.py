@@ -32,7 +32,7 @@ class AsyncBackendClient:
         }
 
         if internal_token:
-            headers["X-Internal-Token"] = internal_token
+            headers["Authorization"] = f"Bearer {internal_token}"
 
         return headers
 
