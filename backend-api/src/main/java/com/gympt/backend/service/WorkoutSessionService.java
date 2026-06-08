@@ -88,6 +88,21 @@ public class WorkoutSessionService {
         if (request.getNotes() != null) {
             session.setNotes(request.getNotes());
         }
+        if (request.getExerciseType() != null) {
+            session.setExerciseType(request.getExerciseType());
+        }
+        if (request.getExerciseName() != null) {
+            session.setExerciseName(request.getExerciseName());
+        }
+        if (request.getTotalReps() != null) {
+            session.setTotalReps(request.getTotalReps());
+        }
+        if (request.getAvgPostureScore() != null) {
+            session.setAvgPostureScore(request.getAvgPostureScore());
+        }
+        if (request.getRecommendationId() != null) {
+            session.setRecommendationId(request.getRecommendationId());
+        }
 
         session = workoutSessionRepository.save(session);
         log.info("Workout session ended: {}", sessionId);

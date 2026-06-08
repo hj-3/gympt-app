@@ -56,6 +56,21 @@ public class WorkoutSession extends BaseEntity {
     @Column(length = 2000)
     private String notes;
 
+    @Column(name = "exercise_type", length = 50)
+    private String exerciseType;
+
+    @Column(name = "exercise_name", length = 100)
+    private String exerciseName;
+
+    @Column(name = "total_reps")
+    private Integer totalReps;
+
+    @Column(name = "avg_posture_score", precision = 5, scale = 2)
+    private BigDecimal avgPostureScore;
+
+    @Column(name = "recommendation_id")
+    private UUID recommendationId;
+
     public enum SessionStatus {
         IN_PROGRESS,
         COMPLETED,

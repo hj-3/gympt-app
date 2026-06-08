@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -24,4 +25,15 @@ public class EndWorkoutSessionRequest {
 
     @Size(max = 2000, message = "Notes must be less than 2000 characters")
     private String notes;
+
+    private String exerciseType;
+
+    private String exerciseName;
+
+    private Integer totalReps;
+
+    @DecimalMin(value = "0.0")
+    private BigDecimal avgPostureScore;
+
+    private UUID recommendationId;
 }
