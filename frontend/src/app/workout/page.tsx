@@ -56,9 +56,13 @@ function WorkoutContent() {
     analysis,
     landmarks,
     repCount,
+    holdSeconds,
     isConnected,
     poseDetected,
   } = usePostureAnalysis();
+
+  const isPlank = exercise === 'plank';
+  const actualCount = isPlank ? holdSeconds : repCount;
 
   useEffect(() => {
     if (!isAuthenticated) router.push('/login');
@@ -117,13 +121,16 @@ function WorkoutContent() {
       : 0;
     const durationMin = Math.max(1, Math.round(elapsedSeconds / 60));
 
-    // AI 추천 목표가 있으면 진행도 계산 (KVS가 센 실제 횟수 / 목표 총 횟수)
+    // 플랭크: 유지 시간(초) 기준 / 반복 운동: 횟수 기준 (actualCount defined in component scope)
+
+    // AI 추천 목표가 있으면 진행도 계산
     const hasTarget = targetSets != null && targetReps != null;
+    // 플랭크에서 targetReps = 목표 초 수
     const targetTotalReps = hasTarget ? targetSets! * targetReps! : null;
     const progressPercent = targetTotalReps
-      ? Math.min(100, Math.round((repCount / targetTotalReps) * 100))
+      ? Math.min(100, Math.round((actualCount / targetTotalReps) * 100))
       : null;
-    const completedSets = targetReps ? Math.floor(repCount / targetReps) : null;
+    const completedSets = targetReps ? Math.floor(actualCount / targetReps) : null;
 
     // Build session report and save to localStorage
     const sessionReport = {
@@ -131,7 +138,8 @@ function WorkoutContent() {
       completedAt: new Date().toISOString(),
       exercise,
       exerciseName: EXERCISE_NAMES[exercise] || exercise,
-      totalReps: repCount,
+      totalReps: actualCount,
+      holdSeconds: isPlank ? holdSeconds : undefined,
       durationSeconds: elapsedSeconds,
       avgScore,
       // 추천 목표 및 진행도 (없으면 null)
@@ -166,8 +174,12 @@ function WorkoutContent() {
       ],
       insights: [
         hasTarget
-          ? `목표 ${targetSets}세트 × ${targetReps}회(총 ${targetTotalReps}회) 중 ${repCount}회 완료 (달성률 ${progressPercent}%).`
-          : `총 ${repCount}회의 ${EXERCISE_NAMES[exercise] || exercise}를 완료했습니다.`,
+          ? isPlank
+            ? `목표 ${targetSets}세트 × ${targetReps}초(총 ${targetTotalReps}초) 중 ${holdSeconds}초 유지 (달성률 ${progressPercent}%).`
+            : `목표 ${targetSets}세트 × ${targetReps}회(총 ${targetTotalReps}회) 중 ${repCount}회 완료 (달성률 ${progressPercent}%).`
+          : isPlank
+            ? `총 ${holdSeconds}초 동안 플랭크를 유지했습니다.`
+            : `총 ${repCount}회의 ${EXERCISE_NAMES[exercise] || exercise}를 완료했습니다.`,
         `평균 자세 점수 ${avgScore.toFixed(1)}점으로 ${avgScore >= 80 ? '우수한' : '양호한'} 수준입니다.`,
         `${durationMin}분 동안 지속적으로 운동했습니다.`,
       ],
@@ -192,7 +204,8 @@ function WorkoutContent() {
         exerciseProgress[exercise] = {
           done: true,
           completedAt: new Date().toISOString(),
-          totalReps: repCount,
+          totalReps: actualCount,
+          holdSeconds: isPlank ? holdSeconds : undefined,
           postureScore: Math.round(avgScore * 10) / 10,
           targetReps: targetReps,
           targetSets: targetSets,
@@ -338,6 +351,7 @@ function WorkoutContent() {
               exercise={exercise}
               targetReps={targetReps ?? undefined}
               targetSets={targetSets ?? undefined}
+              holdSeconds={holdSeconds}
             />
 
             {/* AI 추천 목표 진행도 */}
@@ -345,13 +359,15 @@ function WorkoutContent() {
               <Card>
                 <h3 className="font-semibold mb-2">목표 진행도</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  {repCount} / {targetSets * targetReps}회
-                  ({Math.min(100, Math.round((repCount / (targetSets * targetReps)) * 100))}%)
+                  {isPlank
+                    ? `${holdSeconds}초 / ${targetSets * targetReps}초`
+                    : `${repCount}회 / ${targetSets * targetReps}회`}
+                  {' '}({Math.min(100, Math.round((actualCount / (targetSets * targetReps)) * 100))}%)
                 </p>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
                     className="bg-blue-600 h-2.5 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, Math.round((repCount / (targetSets * targetReps)) * 100))}%` }}
+                    style={{ width: `${Math.min(100, Math.round((actualCount / (targetSets * targetReps)) * 100))}%` }}
                   />
                 </div>
               </Card>

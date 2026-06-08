@@ -3,6 +3,7 @@ from typing import Dict, Optional
 import logging
 import json
 import base64
+import time as _time
 import numpy as np
 import cv2
 
@@ -86,6 +87,9 @@ class WebSocketHandler:
         self.sessions: Dict[str, _SessionContext] = {}
         self.feedback_service = FeedbackService()
         self.frame_count: Dict[str, int] = {}
+        # Plank hold tracking (seconds of good-form time accumulated)
+        self._plank_hold: Dict[str, float] = {}
+        self._plank_last_good: Dict[str, float] = {}
 
     async def connect(self, websocket: WebSocket, session_id: str):
         """Accept WebSocket connection."""
@@ -111,6 +115,8 @@ class WebSocketHandler:
         """Remove WebSocket connection and release pose resources."""
         self.connections.pop(session_id, None)
         self.frame_count.pop(session_id, None)
+        self._plank_hold.pop(session_id, None)
+        self._plank_last_good.pop(session_id, None)
         ctx = self.sessions.pop(session_id, None)
         if ctx:
             ctx.close()
@@ -202,6 +208,23 @@ class WebSocketHandler:
 
             feedback = await self.feedback_service.generate_feedback(analysis)
 
+            # Plank: track cumulative good-form hold time instead of reps
+            hold_seconds = 0
+            if ctx.exercise == "plank":
+                now = _time.monotonic()
+                plank_score = analysis.get("score", 0)
+                last_good = self._plank_last_good.get(session_id, 0.0)
+                if plank_score >= 7.0:
+                    if last_good > 0 and (now - last_good) <= 0.5:
+                        self._plank_hold[session_id] = (
+                            self._plank_hold.get(session_id, 0.0) + (now - last_good)
+                        )
+                    self._plank_last_good[session_id] = now
+                else:
+                    # Form broke — freeze the timer (don't reset, just stop accumulating)
+                    self._plank_last_good.pop(session_id, None)
+                hold_seconds = int(self._plank_hold.get(session_id, 0.0))
+
             await self._send_message(session_id, {
                 "type": "analysis",
                 "session_id": session_id,
@@ -213,6 +236,7 @@ class WebSocketHandler:
                 "angles": angles,
                 "rep_count": rep_result.total_reps,
                 "rep_state": rep_result.current_state.value,
+                "hold_seconds": hold_seconds,
                 "confidence": confidence,
                 "feedback": feedback,
             })
@@ -272,6 +296,10 @@ class WebSocketHandler:
         exercise = message.get("exercise")
         ctx = self.sessions.get(session_id)
         if ctx and exercise:
+            if exercise != ctx.exercise:
+                # Reset plank hold timer when switching exercises
+                self._plank_hold.pop(session_id, None)
+                self._plank_last_good.pop(session_id, None)
             ctx.set_exercise(exercise)
         logger.info(f"Session {session_id} changed exercise to: {exercise}")
 

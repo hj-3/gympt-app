@@ -35,12 +35,14 @@ export function usePostureAnalysis() {
   const [poseDetected, setPoseDetected] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
+  const [holdSeconds, setHoldSeconds] = useState(0);
   const exerciseRef = useRef<string>('squat');
   const sessionStartRef = useRef<number>(0);
 
   const connect = useCallback(async (sessionId: string) => {
     setCurrentSessionId(sessionId);
     setRepCount(0);
+    setHoldSeconds(0);
     setAnalysis(null);
     setLandmarks([]);
     setPoseDetected(false);
@@ -92,6 +94,9 @@ export function usePostureAnalysis() {
             if (typeof data.rep_count === 'number') {
               setRepCount(data.rep_count);
             }
+            if (typeof data.hold_seconds === 'number') {
+              setHoldSeconds(data.hold_seconds);
+            }
           } catch (e) {
             console.error('WS parse error:', e);
           }
@@ -123,6 +128,7 @@ export function usePostureAnalysis() {
     setLandmarks([]);
     setPoseDetected(false);
     setRepCount(0);
+    setHoldSeconds(0);
     setCurrentSessionId(null);
   }, []);
 
@@ -152,6 +158,7 @@ export function usePostureAnalysis() {
     analysis,
     landmarks,
     repCount,
+    holdSeconds,
     isConnected,
     poseDetected,
     sessionId: currentSessionId,
