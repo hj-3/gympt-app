@@ -9,7 +9,98 @@ import {
   TrophyIcon,
   FireIcon,
   CheckCircleIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDuration(seconds: number): string {
+  if (!seconds || seconds < 60) return `${seconds || 0}초`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}분 ${s}초` : `${m}분`;
+}
+
+function fmtTime(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ExerciseCard({ exercise }: { exercise: any }) {
+  const isPlank = exercise.isPlank || exercise.exercise === 'plank';
+  return (
+    <div className="border-2 border-gray-100 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold text-gray-900">{exercise.name || '운동'}</h4>
+        <span className="text-sm font-bold text-blue-600">
+          {exercise.postureScore?.toFixed(1) || '0.0'}점
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 text-sm">
+        <div>
+          <p className="text-gray-500 mb-1">세트</p>
+          <p className="font-medium text-gray-900">{exercise.sets || 0}세트</p>
+        </div>
+        {isPlank ? (
+          <div>
+            <p className="text-gray-500 mb-1">유지 시간</p>
+            <p className="font-medium text-gray-900">
+              {fmtTime(exercise.holdSeconds ?? exercise.totalActual ?? 0)}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-gray-500 mb-1">횟수</p>
+            <p className="font-medium text-gray-900">{exercise.reps || exercise.totalActual || 0}회</p>
+          </div>
+        )}
+        <div>
+          <p className="text-gray-500 mb-1">시간</p>
+          <p className="font-medium text-gray-900">{fmtDuration(exercise.durationSeconds || (exercise.duration || 0) * 60)}</p>
+        </div>
+      </div>
+
+      {/* Target vs actual */}
+      {exercise.targetReps != null && exercise.targetSets != null && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>목표 달성률</span>
+            <span className="font-bold text-blue-600">{exercise.progressPercent ?? 0}%</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all ${(exercise.progressPercent ?? 0) >= 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+              style={{ width: `${Math.min(100, exercise.progressPercent ?? 0)}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            목표: {exercise.targetSets}세트 × {isPlank ? `${exercise.targetReps}초` : `${exercise.targetReps}회`}
+          </p>
+        </div>
+      )}
+
+      {/* Agent feedback */}
+      {exercise.agentFeedback && (
+        <div className="mt-3 pt-3 border-t border-gray-100 bg-purple-50 rounded-xl p-3">
+          <p className="text-xs font-semibold text-purple-700 mb-1">🤖 AI 코치 피드백</p>
+          <p className="text-xs text-gray-700 leading-relaxed">{exercise.agentFeedback}</p>
+        </div>
+      )}
+
+      {exercise.notes && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <p className="text-xs text-gray-600">{exercise.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 function ReportDetailContent() {
   const router = useRouter();
@@ -25,28 +116,17 @@ function ReportDetailContent() {
 
   const loadReport = async () => {
     setLoading(true);
-
-    // First try localStorage (for local demo sessions)
     if (typeof window !== 'undefined') {
       const local = localStorage.getItem(`gympt_session_${sessionId}`);
       if (local) {
-        try {
-          setReport(JSON.parse(local));
-          setLoading(false);
-          return;
-        } catch {
-          // fall through to API
-        }
+        try { setReport(JSON.parse(local)); setLoading(false); return; } catch {}
       }
     }
-
-    // Then try backend API
     try {
       const response = await apiClient.getReport(sessionId!) as any;
       setReport(response);
     } catch {
-      // Generate a placeholder report so demo doesn't break
-      setReport(generatePlaceholderReport(sessionId!));
+      setReport(null);
     } finally {
       setLoading(false);
     }
@@ -57,7 +137,7 @@ function ReportDetailContent() {
       <ProtectedRoute>
         <div className="flex flex-col items-center justify-center min-h-screen gap-3">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-          <p className="text-gray-500 text-sm">리포트 생성 중...</p>
+          <p className="text-gray-500 text-sm">리포트 로딩 중...</p>
         </div>
       </ProtectedRoute>
     );
@@ -78,37 +158,39 @@ function ReportDetailContent() {
     );
   }
 
+  const summary = report.summary || {};
+  const isPlankSession = report.isPlank || report.exercise === 'plank';
+
+  // Support both new (durationSeconds) and old (totalDuration in minutes) formats
+  const durationSec: number = summary.totalDuration > 300
+    ? summary.totalDuration  // already in seconds (new format)
+    : (summary.totalDuration || 0) * 60;  // old format was minutes
+
+  const totalCount: number = summary.totalReps ?? report.totalActual ?? report.totalReps ?? 0;
+  const avgScore: number = summary.averagePostureScore ?? 0;
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-md mx-auto pb-20">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center sticky top-0 z-10">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-full"
-            >
+            <button onClick={() => router.push('/dashboard')} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
               <ChevronLeftIcon className="w-6 h-6 text-gray-700" />
             </button>
-            <h1 className="flex-1 text-lg font-semibold text-gray-900 text-center mr-10">
-              운동 리포트
-            </h1>
+            <h1 className="flex-1 text-lg font-semibold text-gray-900 text-center mr-10">운동 리포트</h1>
           </div>
 
-          <div className="px-4 py-6 space-y-6">
+          <div className="px-4 py-6 space-y-5">
             {/* Summary Card */}
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 shadow-lg text-white">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm opacity-90 mb-1">완료 시간</p>
-                  <p className="text-lg font-semibold">
+                  <p className="text-sm opacity-80 mb-1">완료</p>
+                  <p className="text-base font-semibold">
                     {report.completedAt
-                      ? new Date(report.completedAt).toLocaleDateString('ko-KR', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                        })
-                      : new Date().toLocaleDateString('ko-KR', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                        })}
+                      ? new Date(report.completedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
                 <TrophyIcon className="w-12 h-12 opacity-80" />
@@ -116,54 +198,59 @@ function ReportDetailContent() {
 
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/20">
                 <div>
-                  <p className="text-xs opacity-80 mb-1">운동 시간</p>
-                  <p className="text-xl font-bold">{report.summary?.totalDuration || 0}분</p>
+                  <p className="text-xs opacity-80 mb-1 flex items-center gap-1">
+                    <ClockIcon className="w-3 h-3" />운동 시간
+                  </p>
+                  <p className="text-lg font-bold">{fmtDuration(durationSec)}</p>
                 </div>
                 <div>
-                  <p className="text-xs opacity-80 mb-1">총 반복</p>
-                  <p className="text-xl font-bold">{report.summary?.exercisesCompleted || 0}개</p>
+                  <p className="text-xs opacity-80 mb-1">
+                    {isPlankSession ? '유지 시간' : '총 횟수'}
+                  </p>
+                  <p className="text-lg font-bold">
+                    {isPlankSession ? fmtTime(report.holdSeconds ?? totalCount) : `${totalCount}회`}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs opacity-80 mb-1">평균 점수</p>
-                  <p className="text-xl font-bold">
-                    {report.summary?.averagePostureScore?.toFixed(1) || '0.0'}
-                  </p>
+                  <p className="text-lg font-bold">{avgScore.toFixed(1)}</p>
                 </div>
               </div>
             </div>
 
-            {/* 추천 목표 진행도 */}
+            {/* Recommendation target progress */}
             {report.target && report.progress && (
-              <div className="bg-white rounded-3xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">추천 목표 달성도</h3>
+              <div className="bg-white rounded-3xl p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">추천 목표 달성도</h3>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600">
-                    목표 {report.target.sets}세트 × {report.target.reps}회 (총 {report.target.totalReps}회)
+                    목표 {report.target.sets}세트 × {isPlankSession ? `${report.target.reps}초` : `${report.target.reps}회`}
+                    {' '}(총 {isPlankSession ? `${report.target.totalReps}초` : `${report.target.totalReps}회`})
                   </span>
-                  <span className="text-sm font-bold text-blue-600">
+                  <span className={`text-sm font-bold ${report.progress.percent >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
                     {report.progress.percent}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                   <div
-                    className={`h-3 rounded-full transition-all ${
-                      report.progress.percent >= 100 ? 'bg-green-500' : 'bg-blue-600'
-                    }`}
-                    style={{ width: `${report.progress.percent}%` }}
+                    className={`h-3 rounded-full ${report.progress.percent >= 100 ? 'bg-green-500' : 'bg-blue-600'}`}
+                    style={{ width: `${Math.min(100, report.progress.percent)}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-600">
                   {report.progress.percent >= 100
-                    ? `🎉 목표를 모두 달성했습니다! 총 ${report.progress.completedReps}회 완료`
-                    : `${report.progress.completedReps}회 완료 — 목표까지 ${report.target.totalReps - report.progress.completedReps}회 남았습니다`}
+                    ? `🎉 목표 달성! (${isPlankSession ? `${report.totalActual}초` : `${report.totalActual}회`} 완료)`
+                    : isPlankSession
+                    ? `${report.holdSeconds ?? report.totalActual}초 완료 — 목표까지 ${report.target.totalReps - (report.holdSeconds ?? report.totalActual ?? 0)}초 남았습니다`
+                    : `${report.totalActual}회 완료 — 목표까지 ${report.target.totalReps - report.totalActual}회 남았습니다`}
                 </p>
               </div>
             )}
 
-            {/* Exercise Details */}
+            {/* Exercise details */}
             {report.exercises?.length > 0 && (
-              <div className="bg-white rounded-3xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">운동 상세</h3>
+              <div className="bg-white rounded-3xl p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">운동 상세</h3>
                 <div className="space-y-4">
                   {report.exercises.map((ex: any, idx: number) => (
                     <ExerciseCard key={idx} exercise={ex} />
@@ -174,12 +261,12 @@ function ReportDetailContent() {
 
             {/* Insights */}
             {report.insights?.length > 0 && (
-              <div className="bg-white rounded-3xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">분석 인사이트</h3>
-                <div className="space-y-3">
+              <div className="bg-white rounded-3xl p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">분석 인사이트</h3>
+                <div className="space-y-2">
                   {report.insights.map((insight: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-                      <CheckCircleIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div key={idx} className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl">
+                      <CheckCircleIcon className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                       <p className="text-sm text-gray-700">{insight}</p>
                     </div>
                   ))}
@@ -189,12 +276,12 @@ function ReportDetailContent() {
 
             {/* Recommendations */}
             {report.recommendations?.length > 0 && (
-              <div className="bg-white rounded-3xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">개선 추천</h3>
-                <div className="space-y-3">
+              <div className="bg-white rounded-3xl p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">개선 추천</h3>
+                <div className="space-y-2">
                   {report.recommendations.map((rec: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
-                      <FireIcon className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <div key={idx} className="flex items-start gap-2 p-3 bg-orange-50 rounded-xl">
+                      <FireIcon className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
                       <p className="text-sm text-gray-700">{rec}</p>
                     </div>
                   ))}
@@ -213,65 +300,6 @@ function ReportDetailContent() {
       </div>
     </ProtectedRoute>
   );
-}
-
-function ExerciseCard({ exercise }: { exercise: any }) {
-  return (
-    <div className="border-2 border-gray-100 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="font-semibold text-gray-900">{exercise.name || '운동'}</h4>
-        <span className="text-sm font-medium text-blue-600">
-          {exercise.postureScore?.toFixed(1) || '0.0'}점
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-3 text-sm">
-        <div>
-          <p className="text-gray-500 mb-1">세트</p>
-          <p className="font-medium text-gray-900">{exercise.sets || 0}세트</p>
-        </div>
-        <div>
-          <p className="text-gray-500 mb-1">횟수</p>
-          <p className="font-medium text-gray-900">{exercise.reps || 0}회</p>
-        </div>
-        <div>
-          <p className="text-gray-500 mb-1">시간</p>
-          <p className="font-medium text-gray-900">{exercise.duration || 0}분</p>
-        </div>
-      </div>
-      {exercise.notes && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-600">{exercise.notes}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function generatePlaceholderReport(sessionId: string) {
-  return {
-    sessionId,
-    completedAt: new Date().toISOString(),
-    summary: { totalDuration: 20, exercisesCompleted: 15, averagePostureScore: 83.5 },
-    exercises: [
-      {
-        name: '스쿼트',
-        sets: 3,
-        reps: 15,
-        duration: 20,
-        postureScore: 83.5,
-        notes: '전반적으로 좋은 자세를 유지했습니다.',
-      },
-    ],
-    insights: [
-      '총 15회의 스쿼트를 완료했습니다.',
-      '평균 자세 점수 83.5점으로 양호한 수준입니다.',
-      '20분 동안 지속적으로 운동했습니다.',
-    ],
-    recommendations: [
-      '무릎 정렬에 조금 더 주의를 기울이세요.',
-      '거울 앞에서 자세를 확인하며 운동하면 도움이 됩니다.',
-    ],
-  };
 }
 
 export default function ReportDetailPage() {

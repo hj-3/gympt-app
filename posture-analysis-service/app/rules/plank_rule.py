@@ -1,4 +1,4 @@
-"""Plank form analysis rules."""
+"""Plank form analysis with continuous severity-weighted scoring."""
 from typing import Dict, Any
 from app.pose_estimator.base import PoseEstimator
 
@@ -7,177 +7,117 @@ class PlankRule:
     """Plank form analysis rules."""
 
     def __init__(self, estimator: PoseEstimator):
-        """
-        Initialize plank rule.
-
-        Args:
-            estimator: Pose estimator instance
-        """
         self.estimator = estimator
 
     async def analyze(self, pose_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analyze plank form.
-
-        Checks:
-        - Hip alignment (no sagging or piking)
-        - Core engagement (straight line from shoulders to ankles)
-        - Shoulder position (directly above elbows)
-        - Head/neck alignment
-
-        Args:
-            pose_data: Pose estimation data
-
-        Returns:
-            Analysis result with score and issues
-        """
         issues = []
         score = 10.0
 
         keypoints = pose_data.get("keypoints", {})
+        if not keypoints:
+            return {"exercise": "plank", "score": 5.0, "issues": [], "is_good_form": False,
+                    "keypoints_analyzed": 0}
 
-        # Check hip alignment
-        hip_sag = self._check_hip_sag(keypoints)
-        if hip_sag == "sagging":
+        # Hip alignment: sagging or piking
+        hip_sag, hip_pike = self._hip_deviation_severity(keypoints)
+        score -= 3.5 * hip_sag
+        if hip_sag > 0.2:
             issues.append({
                 "type": "hip_sag",
-                "severity": "high",
+                "severity": "high" if hip_sag > 0.5 else "medium",
                 "description": "엉덩이가 아래로 처지고 있습니다",
                 "correction": "코어에 힘을 주고 엉덩이를 어깨 높이에 맞춰 올리세요"
             })
-            score -= 3.0
-        elif hip_sag == "piking":
+        score -= 2.5 * hip_pike
+        if hip_pike > 0.2:
             issues.append({
                 "type": "hip_pike",
                 "severity": "medium",
                 "description": "엉덩이가 너무 높습니다",
                 "correction": "엉덩이를 낮춰 머리부터 발뒤꿈치까지 일직선을 만드세요"
             })
-            score -= 2.0
 
-        # Check shoulder position
-        shoulder_issue = self._check_shoulder_position(keypoints)
-        if shoulder_issue:
-            issues.append({
-                "type": "shoulder_misalignment",
-                "severity": "medium",
-                "description": "어깨가 팔꿈치 위에 정렬되지 않았습니다",
-                "correction": "어깨를 팔꿈치 바로 위에 위치시키세요"
-            })
-            score -= 2.0
-
-        # Check core engagement
-        core_issue = self._check_core_engagement(keypoints)
-        if core_issue:
+        # Core engagement: shoulder–hip–knee angle (good plank ≈ 165–180°)
+        core = self._core_severity(keypoints)
+        score -= 3.0 * core
+        if core > 0.25:
             issues.append({
                 "type": "poor_core_engagement",
-                "severity": "high",
+                "severity": "high" if core > 0.6 else "medium",
                 "description": "코어에 힘이 빠져 있습니다",
                 "correction": "복근에 힘을 주고 척추를 중립으로 유지하세요"
             })
-            score -= 3.0
 
-        # Check head position
-        head_issue = self._check_head_position(keypoints)
-        if head_issue:
+        # Head/neck alignment
+        head = self._head_severity(keypoints)
+        score -= 1.5 * head
+        if head > 0.3:
             issues.append({
                 "type": "head_misalignment",
                 "severity": "low",
                 "description": "머리가 중립 위치에 있지 않습니다",
                 "correction": "목을 중립으로 유지하고 시선은 바닥을 향하세요"
             })
-            score -= 1.0
 
+        final = round(max(0.0, min(10.0, score)), 2)
         return {
             "exercise": "plank",
-            "score": max(0.0, score),
+            "score": final,
             "issues": issues,
-            "is_good_form": score >= 8.0,
-            "keypoints_analyzed": len(keypoints)
+            "is_good_form": final >= 7.5,
+            "keypoints_analyzed": len(keypoints),
         }
 
-    def _check_hip_sag(self, keypoints: Dict) -> str:
-        """
-        Check hip alignment (sagging or piking).
-
-        Returns:
-            "good", "sagging", or "piking"
-        """
+    def _hip_deviation_severity(self, keypoints: Dict):
+        """Return (sag_severity, pike_severity), each 0..1."""
         left_shoulder = keypoints.get("left_shoulder", {})
         left_hip = keypoints.get("left_hip", {})
         left_ankle = keypoints.get("left_ankle", {})
-
         if not all([left_shoulder, left_hip, left_ankle]):
-            return "good"
+            return 0.0, 0.0
 
         shoulder_y = left_shoulder.get("y", 0)
-        hip_y = left_hip.get("y", 0)
         ankle_y = left_ankle.get("y", 0)
+        hip_y = left_hip.get("y", 0)
 
-        # Calculate expected hip position (should be on line from shoulder to ankle)
-        expected_hip_y = (shoulder_y + ankle_y) / 2
+        # Linear interpolation: where should hip be along shoulder-to-ankle line?
+        # shoulder_y and ankle_y: which is higher (smaller y) in side-view plank?
+        # typically shoulder is higher than ankle (shoulder_y < ankle_y if feet on floor)
+        expected_y = shoulder_y + (ankle_y - shoulder_y) * 0.45  # hip ~45% along line
+        deviation = hip_y - expected_y  # positive = too low (sagging), negative = too high (piking)
 
-        # Allow 0.05 tolerance
-        tolerance = 0.05
+        tolerance = 0.04
+        if abs(deviation) <= tolerance:
+            return 0.0, 0.0
 
-        if hip_y > expected_hip_y + tolerance:
-            return "sagging"
-        elif hip_y < expected_hip_y - tolerance:
-            return "piking"
+        if deviation > tolerance:  # sagging
+            sag = min(1.0, (deviation - tolerance) / 0.12)
+            return sag, 0.0
+        else:  # piking
+            pike = min(1.0, (-deviation - tolerance) / 0.10)
+            return 0.0, pike
 
-        return "good"
-
-    def _check_shoulder_position(self, keypoints: Dict) -> bool:
-        """Check if shoulders are aligned over elbows."""
-        left_shoulder = keypoints.get("left_shoulder", {})
-        left_elbow = keypoints.get("left_elbow", {})
-
-        if not left_shoulder or not left_elbow:
-            return False
-
-        # Shoulders should be roughly aligned horizontally with elbows
-        shoulder_x = left_shoulder.get("x", 0)
-        elbow_x = left_elbow.get("x", 0)
-
-        # Check horizontal distance
-        distance = abs(shoulder_x - elbow_x)
-
-        # If shoulders are too far forward or back, it's misaligned
-        return distance > 0.08
-
-    def _check_core_engagement(self, keypoints: Dict) -> bool:
-        """Check core engagement by analyzing body line."""
+    def _core_severity(self, keypoints: Dict) -> float:
+        """Body straightness: shoulder-hip-knee angle should be ~165-180°."""
         left_shoulder = keypoints.get("left_shoulder", {})
         left_hip = keypoints.get("left_hip", {})
         left_knee = keypoints.get("left_knee", {})
-
         if not all([left_shoulder, left_hip, left_knee]):
-            return False
+            return 0.0
 
-        # Calculate angle at hip
-        angle = self.estimator.calculate_angle(
-            left_shoulder,
-            left_hip,
-            left_knee
-        )
+        angle = self.estimator.calculate_angle(left_shoulder, left_hip, left_knee)
+        # calculate_angle returns 0-180 via arccos. Good plank ≥ 160°.
+        if angle >= 160:
+            return 0.0
+        return min(1.0, (160 - angle) / 50.0)
 
-        # In good plank, body should be relatively straight (angle ~170-180)
-        # If angle is too small, core is disengaged
-        return angle < 160 or angle > 190
-
-    def _check_head_position(self, keypoints: Dict) -> bool:
-        """Check if head is in neutral position."""
+    def _head_severity(self, keypoints: Dict) -> float:
         nose = keypoints.get("nose", {})
         left_shoulder = keypoints.get("left_shoulder", {})
-
         if not nose or not left_shoulder:
-            return False
-
-        nose_y = nose.get("y", 0)
-        shoulder_y = left_shoulder.get("y", 0)
-
-        # Head should be roughly level with shoulders (slightly forward)
-        # If head is too far up or down, it's misaligned
-        distance = abs(nose_y - shoulder_y)
-
-        return distance > 0.15
+            return 0.0
+        distance = abs(nose.get("y", 0) - left_shoulder.get("y", 0))
+        # Ideal ≤ 0.12; max bad: 0.25+
+        if distance <= 0.12:
+            return 0.0
+        return min(1.0, (distance - 0.12) / 0.13)

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { apiClient } from '@/lib/api-client';
@@ -23,32 +23,34 @@ function WorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
+
+  // ── session state ─────────────────────────────────────────────────────────
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [exercise, setExercise] = useState('squat');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scoreHistoryRef = useRef<number[]>([]);
+  const rdsSessionIdRef = useRef<string | null>(null);
 
-  // AI 추천에서 넘어온 목표 (세트×횟수). 없으면 자유 운동 모드.
+  // ── AI recommendation targets ─────────────────────────────────────────────
   const [targetSets, setTargetSets] = useState<number | null>(null);
   const [targetReps, setTargetReps] = useState<number | null>(null);
   const recommendationIdRef = useRef<string | null>(null);
-  const rdsSessionIdRef = useRef<string | null>(null);
 
-  // 추천 링크의 쿼리 파라미터(exercise/sets/reps/recommendationId) 반영
-  useEffect(() => {
-    const qExercise = searchParams.get('exercise');
-    const qSets = searchParams.get('sets');
-    const qReps = searchParams.get('reps');
-    const qRecId = searchParams.get('recommendationId');
+  // ── Set management ────────────────────────────────────────────────────────
+  const [currentSet, setCurrentSet] = useState(1);
+  const [restCountdown, setRestCountdown] = useState(0);
+  const [setBaseCount, setSetBaseCount] = useState(0); // repCount/holdSeconds at start of current set
+  const restActiveRef = useRef(false);
+  const setCompletionFiredRef = useRef(false);
 
-    if (qExercise && EXERCISE_NAMES[qExercise]) setExercise(qExercise);
-    if (qSets) setTargetSets(parseInt(qSets, 10) || null);
-    if (qReps) setTargetReps(parseInt(qReps, 10) || null);
-    if (qRecId) recommendationIdRef.current = qRecId;
-  }, [searchParams]);
+  // ── Agent feedback ────────────────────────────────────────────────────────
+  const [agentFeedback, setAgentFeedback] = useState<string | null>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const recentIssuesRef = useRef<string[]>([]);
 
+  // ── Posture WebSocket ─────────────────────────────────────────────────────
   const {
     connect,
     disconnect,
@@ -61,24 +63,46 @@ function WorkoutContent() {
     poseDetected,
   } = usePostureAnalysis();
 
+  const repCountRef = useRef(0);
+  const holdSecondsRef = useRef(0);
+  useEffect(() => { repCountRef.current = repCount; }, [repCount]);
+  useEffect(() => { holdSecondsRef.current = holdSeconds; }, [holdSeconds]);
+
   const isPlank = exercise === 'plank';
-  const actualCount = isPlank ? holdSeconds : repCount;
+  const effectiveCount = isPlank ? holdSeconds : repCount;
+  const currentSetCount = Math.max(0, effectiveCount - setBaseCount);
+
+  // ── URL params ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const qEx = searchParams.get('exercise');
+    const qSets = searchParams.get('sets');
+    const qReps = searchParams.get('reps');
+    const qRecId = searchParams.get('recommendationId');
+    if (qEx && EXERCISE_NAMES[qEx]) setExercise(qEx);
+    if (qSets) setTargetSets(parseInt(qSets, 10) || null);
+    if (qReps) setTargetReps(parseInt(qReps, 10) || null);
+    if (qRecId) recommendationIdRef.current = qRecId;
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isAuthenticated) router.push('/login');
   }, [isAuthenticated, router]);
 
-  // Accumulate scores for report — only when a real pose is detected
+  // ── Accumulate scores ─────────────────────────────────────────────────────
   useEffect(() => {
     if (analysis && isSessionActive && poseDetected) {
       scoreHistoryRef.current.push(analysis.formScore);
     }
+    // Track recent issues for agent feedback
+    if (analysis?.feedback && analysis.feedback.length > 0) {
+      recentIssuesRef.current = analysis.feedback.slice(0, 5);
+    }
   }, [analysis, isSessionActive, poseDetected]);
 
-  // Session timer
+  // ── Session timer ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (isSessionActive) {
-      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+      timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       setElapsedSeconds(0);
@@ -86,172 +110,220 @@ function WorkoutContent() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isSessionActive]);
 
+  // ── Rest countdown ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (restCountdown <= 0) return;
+    const timer = setTimeout(() => {
+      setRestCountdown((prev) => {
+        const next = prev - 1;
+        if (next <= 0) {
+          // Start next set
+          const base = isPlank ? holdSecondsRef.current : repCountRef.current;
+          setSetBaseCount(base);
+          setCurrentSet((s) => s + 1);
+          restActiveRef.current = false;
+          setCompletionFiredRef.current = false;
+          toast.success('다음 세트 시작!');
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [restCountdown, isPlank]);
+
+  // ── Set completion detection ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!targetReps || !targetSets || !isSessionActive) return;
+    if (restActiveRef.current || setCompletionFiredRef.current) return;
+    if (currentSet > targetSets) return; // all sets done
+
+    if (currentSetCount >= targetReps) {
+      setCompletionFiredRef.current = true;
+      restActiveRef.current = true;
+
+      if (currentSet < targetSets) {
+        toast(`세트 ${currentSet} 완료! 10초 휴식합니다.`, { icon: '💪' });
+        setRestCountdown(10);
+        // Call agent for feedback after this set
+        requestAgentFeedback();
+      } else {
+        toast.success('🎉 모든 세트를 완료했습니다!', { duration: 4000 });
+        requestAgentFeedback();
+      }
+    }
+  }, [currentSetCount, targetReps, targetSets, currentSet, isSessionActive]);
+
+  // ── Agent feedback call ───────────────────────────────────────────────────
+  const requestAgentFeedback = useCallback(async () => {
+    if (!sessionId || !user?.userId || agentLoading) return;
+    setAgentLoading(true);
+    try {
+      const result = await (apiClient as any).getPostureFeedback({
+        user_id: user.userId,
+        session_id: sessionId,
+        exercise_name: exercise,
+        posture_score: analysis ? analysis.formScore / 10 : 5,
+        detected_issues: recentIssuesRef.current,
+      });
+      const feedback = (result as any)?.feedback || (result as any)?.data?.feedback;
+      if (feedback) setAgentFeedback(feedback);
+    } catch (e) {
+      console.warn('Agent feedback failed:', e);
+    } finally {
+      setAgentLoading(false);
+    }
+  }, [sessionId, user, exercise, analysis, agentLoading]);
+
+  // ── Session start ─────────────────────────────────────────────────────────
   const handleStartSession = async () => {
     if (!user) return;
-
-    const sid = `local-${Date.now()}`;
+    const sid = `${user.userId}-${Date.now()}`;
     setSessionId(sid);
     scoreHistoryRef.current = [];
     rdsSessionIdRef.current = null;
+    setCurrentSet(1);
+    setRestCountdown(0);
+    setSetBaseCount(0);
+    restActiveRef.current = false;
+    setCompletionFiredRef.current = false;
+    setAgentFeedback(null);
 
     try {
       await connect(sid);
     } catch {
-      toast.error('자세 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      toast.error('자세 분석 서버에 연결할 수 없습니다.');
       setSessionId(null);
       return;
     }
 
-    // Create session record in RDS for dashboard history (non-blocking)
     apiClient.startFreeSession().then((res: any) => {
       if (res?.id) rdsSessionIdRef.current = res.id;
-    }).catch((e: any) => console.warn('Failed to create backend session:', e));
+    }).catch(() => {});
 
     setIsSessionActive(true);
     toast.success('운동 세션이 시작되었습니다!');
   };
 
+  // ── Session end ───────────────────────────────────────────────────────────
   const handleEndSession = async () => {
     disconnect();
     setIsSessionActive(false);
 
     const scores = scoreHistoryRef.current;
-    const avgScore = scores.length > 0
-      ? scores.reduce((a, b) => a + b, 0) / scores.length
-      : 0;
-    const durationMin = Math.max(1, Math.round(elapsedSeconds / 60));
+    const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const durationSec = elapsedSeconds;
+    const durationMin = Math.max(1, Math.round(durationSec / 60));
+    const totalActual = isPlank ? holdSeconds : repCount;
+    const completedSetsCount = targetReps ? Math.floor(totalActual / targetReps) : 0;
 
-    // 플랭크: 유지 시간(초) 기준 / 반복 운동: 횟수 기준 (actualCount defined in component scope)
-
-    // AI 추천 목표가 있으면 진행도 계산
     const hasTarget = targetSets != null && targetReps != null;
-    // 플랭크에서 targetReps = 목표 초 수
-    const targetTotalReps = hasTarget ? targetSets! * targetReps! : null;
-    const progressPercent = targetTotalReps
-      ? Math.min(100, Math.round((actualCount / targetTotalReps) * 100))
-      : null;
-    const completedSets = targetReps ? Math.floor(actualCount / targetReps) : null;
+    const targetTotal = hasTarget ? targetSets! * targetReps! : null;
+    const progressPercent = targetTotal ? Math.min(100, Math.round((totalActual / targetTotal) * 100)) : null;
 
-    // Build session report and save to localStorage
     const sessionReport = {
       sessionId,
       completedAt: new Date().toISOString(),
       exercise,
       exerciseName: EXERCISE_NAMES[exercise] || exercise,
-      totalReps: actualCount,
+      isPlank,
+      totalReps: isPlank ? repCount : repCount,
       holdSeconds: isPlank ? holdSeconds : undefined,
-      durationSeconds: elapsedSeconds,
+      totalActual,
+      durationSeconds: durationSec,
+      durationMinutes: durationMin,
       avgScore,
-      // 추천 목표 및 진행도 (없으면 null)
       recommendationId: recommendationIdRef.current,
-      target: hasTarget
-        ? { sets: targetSets, reps: targetReps, totalReps: targetTotalReps }
-        : null,
-      progress: progressPercent != null
-        ? { percent: progressPercent, completedSets, completedReps: repCount }
-        : null,
+      target: hasTarget ? { sets: targetSets, reps: targetReps, totalReps: targetTotal } : null,
+      progress: progressPercent != null ? { percent: progressPercent, completedSets: completedSetsCount, completedReps: totalActual } : null,
       summary: {
-        totalDuration: durationMin,
-        exercisesCompleted: 1,
+        totalDuration: durationSec,     // seconds (not minutes)
+        totalReps: totalActual,
         averagePostureScore: avgScore,
+        completedSets: completedSetsCount,
       },
       exercises: [
         {
           name: EXERCISE_NAMES[exercise] || exercise,
-          sets: hasTarget ? completedSets : Math.max(1, Math.floor(repCount / 10)),
-          reps: repCount,
-          targetSets: targetSets,
-          targetReps: targetReps,
+          exercise,
+          isPlank,
+          sets: completedSetsCount || (hasTarget ? targetSets : 1),
+          reps: isPlank ? 0 : repCount,
+          holdSeconds: isPlank ? holdSeconds : undefined,
+          targetSets,
+          targetReps,
           progressPercent,
           duration: durationMin,
           postureScore: avgScore,
-          notes: avgScore >= 85
-            ? '훌륭한 자세를 유지했습니다!'
-            : avgScore >= 70
-            ? '전반적으로 좋은 자세였습니다. 일부 교정이 필요합니다.'
-            : '자세 교정에 집중이 필요합니다.',
+          notes: avgScore >= 85 ? '훌륭한 자세를 유지했습니다!' : avgScore >= 70 ? '전반적으로 좋은 자세였습니다.' : '자세 교정에 집중이 필요합니다.',
+          agentFeedback: agentFeedback || undefined,
         },
       ],
       insights: [
         hasTarget
           ? isPlank
-            ? `목표 ${targetSets}세트 × ${targetReps}초(총 ${targetTotalReps}초) 중 ${holdSeconds}초 유지 (달성률 ${progressPercent}%).`
-            : `목표 ${targetSets}세트 × ${targetReps}회(총 ${targetTotalReps}회) 중 ${repCount}회 완료 (달성률 ${progressPercent}%).`
+            ? `목표 ${targetSets}세트 × ${targetReps}초(총 ${targetTotal}초) 중 ${holdSeconds}초 유지 (${progressPercent}% 달성).`
+            : `목표 ${targetSets}세트 × ${targetReps}회(총 ${targetTotal}회) 중 ${repCount}회 완료 (${progressPercent}% 달성).`
           : isPlank
-            ? `총 ${holdSeconds}초 동안 플랭크를 유지했습니다.`
-            : `총 ${repCount}회의 ${EXERCISE_NAMES[exercise] || exercise}를 완료했습니다.`,
-        `평균 자세 점수 ${avgScore.toFixed(1)}점으로 ${avgScore >= 80 ? '우수한' : '양호한'} 수준입니다.`,
-        `${durationMin}분 동안 지속적으로 운동했습니다.`,
+          ? `총 ${holdSeconds}초 동안 플랭크를 유지했습니다.`
+          : `총 ${repCount}회의 ${EXERCISE_NAMES[exercise]}를 완료했습니다.`,
+        `평균 자세 점수 ${avgScore.toFixed(1)}점 (${avgScore >= 80 ? '우수' : avgScore >= 60 ? '양호' : '개선 필요'}).`,
+        durationSec >= 60
+          ? `${durationMin}분 동안 운동했습니다.`
+          : `${durationSec}초 동안 운동했습니다.`,
       ],
       recommendations: avgScore >= 85
-        ? [
-          '현재 자세를 유지하면서 무게나 반복 횟수를 늘려보세요.',
-          '다음 세션에서 새로운 운동을 추가해보는 것도 좋습니다.',
-        ]
-        : [
-          `${EXERCISE_NAMES[exercise]} 시 무릎 정렬에 주의를 기울이세요.`,
-          '거울 앞에서 자세를 확인하며 운동하면 도움이 됩니다.',
-          '가벼운 무게로 자세를 먼저 교정한 후 강도를 높이세요.',
-        ],
+        ? ['자세가 좋습니다. 세트 수 또는 횟수를 늘려보세요.']
+        : [`${EXERCISE_NAMES[exercise]} 시 자세를 더 신경써보세요.`, '거울 앞에서 자세를 확인하며 운동하면 도움이 됩니다.'],
     };
 
-    // Update per-recommendation progress in localStorage
+    // Update localStorage recommendation progress
     if (recommendationIdRef.current && typeof window !== 'undefined') {
       const progressKey = `gympt_rec_progress_${recommendationIdRef.current}`;
       try {
         const existing = JSON.parse(localStorage.getItem(progressKey) || '{}');
-        const exerciseProgress = existing.exercises || {};
-        exerciseProgress[exercise] = {
+        const exProgress = existing.exercises || {};
+        exProgress[exercise] = {
           done: true,
           completedAt: new Date().toISOString(),
-          totalReps: actualCount,
+          totalReps: totalActual,
           holdSeconds: isPlank ? holdSeconds : undefined,
           postureScore: Math.round(avgScore * 10) / 10,
-          targetReps: targetReps,
-          targetSets: targetSets,
+          targetReps,
+          targetSets,
         };
-        const allExercises = Object.values(exerciseProgress) as any[];
-        const allDone = allExercises.length > 0 && allExercises.every((e: any) => e.done);
+        const allDone = Object.values(exProgress).every((e: any) => e.done);
         localStorage.setItem(progressKey, JSON.stringify({
           recommendationId: recommendationIdRef.current,
-          exercises: exerciseProgress,
+          exercises: exProgress,
           startedAt: existing.startedAt || new Date().toISOString(),
           completedAt: allDone ? new Date().toISOString() : null,
         }));
       } catch { /* ignore */ }
     }
 
-    // Use RDS UUID as localStorage key if available (enables deduplication on dashboard)
     const persistKey = rdsSessionIdRef.current || sessionId;
-    const persistedReport = { ...sessionReport, sessionId: persistKey };
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`gympt_session_${persistKey}`, JSON.stringify(persistedReport));
+      localStorage.setItem(`gympt_session_${persistKey}`, JSON.stringify({ ...sessionReport, sessionId: persistKey }));
     }
 
-    // Mark session COMPLETED in RDS so it appears on the dashboard
     if (rdsSessionIdRef.current) {
       apiClient.completeSession(rdsSessionIdRef.current, {
-        totalDuration: elapsedSeconds,
+        totalDuration: durationSec,
         exerciseType: exercise,
         exerciseName: EXERCISE_NAMES[exercise] || exercise,
         totalReps: repCount,
         avgPostureScore: Math.round(avgScore * 100) / 100,
         ...(recommendationIdRef.current ? { recommendationId: recommendationIdRef.current } : {}),
-      }).catch((e: any) => console.warn('Failed to complete backend session:', e));
+      }).catch(() => {});
       rdsSessionIdRef.current = null;
     }
 
-    toast.success('운동이 완료되었습니다! 리포트를 생성합니다...');
-
-    setTimeout(() => {
-      router.push(`/report/detail?sessionId=${persistKey}`);
-    }, 1200);
+    toast.success('운동 완료! 리포트를 생성합니다...');
+    setTimeout(() => router.push(`/report/detail?sessionId=${persistKey}`), 1200);
   };
 
   const handleFrameCapture = (frame: string) => {
-    if (isConnected && sessionId) {
-      sendFrame(frame, exercise);
-    }
+    if (isConnected && sessionId) sendFrame(frame, exercise);
   };
 
   const formatTime = (s: number) => {
@@ -267,28 +339,33 @@ function WorkoutContent() {
     { value: 'plank', label: '플랭크' },
   ];
 
+  const totalTarget = targetSets && targetReps ? targetSets * targetReps : null;
+  const overallProgress = totalTarget ? Math.min(100, Math.round((effectiveCount / totalTarget) * 100)) : null;
+
   if (!user) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">운동 세션</h1>
-        <p className="text-gray-600">실시간 AI 자세 분석으로 정확한 운동을 시작하세요</p>
+    <div className="container mx-auto px-3 py-4 max-w-6xl">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">운동 세션</h1>
+        <p className="text-gray-500 text-sm">실시간 AI 자세 분석</p>
       </div>
 
       {!isSessionActive ? (
-        <Card className="max-w-2xl mx-auto text-center py-12">
+        /* ── 세션 시작 전 ── */
+        <Card className="max-w-2xl mx-auto text-center py-10">
           <h2 className="text-2xl font-semibold mb-4">운동 준비</h2>
           <p className="text-gray-600 mb-6">운동을 선택하고 시작 버튼을 눌러주세요</p>
 
-          {/* AI 추천 목표 배지 */}
           {targetSets != null && targetReps != null && (
             <div className="mb-6 mx-auto max-w-xs bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
               <p className="text-sm text-blue-700 font-medium">
-                🎯 AI 추천 목표: {EXERCISE_NAMES[exercise]} {targetSets}세트 × {targetReps}회
+                🎯 AI 추천 목표: {EXERCISE_NAMES[exercise]} {targetSets}세트 ×{' '}
+                {exercise === 'plank' ? `${targetReps}초` : `${targetReps}회`}
               </p>
               <p className="text-xs text-blue-500 mt-1">
-                총 {targetSets * targetReps}회 — KVS가 진행도를 추적합니다
+                총 {exercise === 'plank' ? `${targetSets * targetReps}초` : `${targetSets * targetReps}회`}
+                {' '} — 세트 완료 후 10초 휴식 자동 제공
               </p>
             </div>
           )}
@@ -298,22 +375,19 @@ function WorkoutContent() {
             <select
               value={exercise}
               onChange={(e) => setExercise(e.target.value)}
-              className="w-full max-w-xs mx-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full max-w-xs mx-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              {exercises.map((ex) => (
-                <option key={ex.value} value={ex.value}>{ex.label}</option>
-              ))}
+              {exercises.map((ex) => <option key={ex.value} value={ex.value}>{ex.label}</option>)}
             </select>
           </div>
 
-          <Button onClick={handleStartSession} size="lg">
-            운동 시작
-          </Button>
+          <Button onClick={handleStartSession} size="lg">운동 시작</Button>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Left: camera + controls */}
-          <div className="md:col-span-2 space-y-4">
+        /* ── 세션 활성 ── */
+        <div className="grid lg:grid-cols-5 gap-4">
+          {/* Left: Camera (60%) */}
+          <div className="lg:col-span-3 space-y-3">
             <VideoFeed
               isActive={isSessionActive}
               onFrame={handleFrameCapture}
@@ -321,75 +395,86 @@ function WorkoutContent() {
               landmarks={landmarks}
             />
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
                 <select
                   value={exercise}
                   onChange={(e) => setExercise(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 >
-                  {exercises.map((ex) => (
-                    <option key={ex.value} value={ex.value}>{ex.label}</option>
-                  ))}
+                  {exercises.map((ex) => <option key={ex.value} value={ex.value}>{ex.label}</option>)}
                 </select>
-
                 <div className="font-mono text-lg font-semibold text-gray-700">
                   {formatTime(elapsedSeconds)}
                 </div>
               </div>
-
-              <Button onClick={handleEndSession} variant="danger" size="lg">
-                운동 종료
-              </Button>
+              <Button onClick={handleEndSession} variant="danger">운동 종료</Button>
             </div>
           </div>
 
-          {/* Right: stats panel */}
-          <div className="space-y-4">
+          {/* Right: Stats panel (40%) */}
+          <div className="lg:col-span-2 space-y-3">
+            {/* Set counter + rep counter */}
             <RepCounter
               count={repCount}
               exercise={exercise}
               targetReps={targetReps ?? undefined}
               targetSets={targetSets ?? undefined}
               holdSeconds={holdSeconds}
+              currentSet={currentSet}
+              restCountdown={restCountdown}
+              currentSetReps={isPlank ? undefined : currentSetCount}
             />
 
-            {/* AI 추천 목표 진행도 */}
-            {targetSets != null && targetReps != null && (
+            {/* Overall progress (if AI target) */}
+            {totalTarget != null && overallProgress != null && (
               <Card>
-                <h3 className="font-semibold mb-2">목표 진행도</h3>
-                <p className="text-sm text-gray-600 mb-2">
-                  {isPlank
-                    ? `${holdSeconds}초 / ${targetSets * targetReps}초`
-                    : `${repCount}회 / ${targetSets * targetReps}회`}
-                  {' '}({Math.min(100, Math.round((actualCount / (targetSets * targetReps)) * 100))}%)
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">전체 목표 달성도</h3>
+                <p className="text-xs text-gray-500 mb-1.5">
+                  {isPlank ? `${effectiveCount}초 / ${totalTarget}초` : `${effectiveCount}회 / ${totalTarget}회`}
+                  {' '}({overallProgress}%)
                 </p>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, Math.round((actualCount / (targetSets * targetReps)) * 100))}%` }}
+                    className={`h-2 rounded-full transition-all ${overallProgress >= 100 ? 'bg-green-500' : 'bg-blue-600'}`}
+                    style={{ width: `${overallProgress}%` }}
                   />
                 </div>
               </Card>
             )}
 
+            {/* Agent feedback */}
+            {(agentFeedback || agentLoading) && (
+              <Card>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">🤖</span>
+                  <h3 className="text-sm font-semibold text-purple-700">AI 코치 피드백</h3>
+                  {agentLoading && (
+                    <div className="ml-auto animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500" />
+                  )}
+                </div>
+                {agentFeedback && (
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{agentFeedback}</p>
+                )}
+                {agentLoading && !agentFeedback && (
+                  <p className="text-xs text-gray-400">AI가 자세를 분석하고 있습니다...</p>
+                )}
+              </Card>
+            )}
+
             <PostureFeedback analysis={analysis} />
 
+            {/* Connection status */}
             <Card>
-              <h3 className="font-semibold mb-3">분석 상태</h3>
-              <div className="flex items-center space-x-2 mb-2">
-                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                <span className="text-sm text-gray-600">
-                  {isConnected ? 'AI 분석 중' : '연결 대기 중'}
-                </span>
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                <span className="text-sm text-gray-600">{isConnected ? 'AI 자세 분석 중' : '연결 대기 중'}</span>
+                {analysis && (
+                  <span className="ml-auto text-xs font-semibold text-blue-600">
+                    {analysis.formScore.toFixed(1)}점
+                  </span>
+                )}
               </div>
-              {analysis && (
-                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-700 font-medium">
-                    현재 점수: {analysis.formScore.toFixed(1)}점
-                  </p>
-                </div>
-              )}
             </Card>
           </div>
         </div>
@@ -400,11 +485,7 @@ function WorkoutContent() {
 
 export default function WorkoutPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
-    }>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>}>
       <WorkoutContent />
     </Suspense>
   );

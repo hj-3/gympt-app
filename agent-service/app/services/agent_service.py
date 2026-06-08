@@ -301,14 +301,16 @@ class AgentService:
 
     def _extract_target_exercises(self, content: str) -> list:
         """
-        Parse the recommendation text and extract structured targets
-        (exercise key, sets, reps) for KVS-trackable exercises only.
+        Parse the recommendation text and extract structured targets.
 
         Matches patterns like:
           - "기본 스쿼트: 3세트 x 12-15회"
-          - "푸시업 3세트 x 10회"
+          - "푸시업 3세트 × 10회"
           - "플랭크: 3세트 x 30초"
-        Picks the first occurrence per exercise to avoid duplicates.
+          - "스쿼트 (3세트, 12회)"
+
+        Returns a list of {exercise, sets, reps} dicts.
+        For plank, 'reps' = target hold seconds (e.g. 30).
         """
         import re
 
@@ -319,17 +321,26 @@ class AgentService:
                 if kor_name not in line or key in targets:
                     continue
 
-                # Find "N세트" and the first rep/second count after it
+                # "N세트" — look forward and backward from exercise name
                 sets_match = re.search(r"(\d+)\s*세트", line)
-                reps_match = re.search(r"(\d+)(?:\s*[-~]\s*\d+)?\s*(?:회|초|개)", line)
-
                 sets = int(sets_match.group(1)) if sets_match else 3
-                reps = int(reps_match.group(1)) if reps_match else 10
+
+                # For plank: look for 초 (seconds) first, then 회 as fallback
+                if key == "plank":
+                    sec_match = re.search(r"(\d+)(?:\s*[-~x×]\s*\d+)?\s*초", line)
+                    if sec_match:
+                        reps = int(sec_match.group(1))
+                    else:
+                        reps = 30  # sensible plank default
+                else:
+                    # Take the lower bound of a range (e.g. "12-15회" → 12)
+                    reps_match = re.search(r"(\d+)(?:\s*[-~]\s*\d+)?\s*(?:회|개)", line)
+                    reps = int(reps_match.group(1)) if reps_match else 10
 
                 targets[key] = {
                     "exercise": key,
-                    "sets": sets,
-                    "reps": reps,
+                    "sets": max(1, sets),
+                    "reps": max(1, reps),
                 }
 
         return list(targets.values())
