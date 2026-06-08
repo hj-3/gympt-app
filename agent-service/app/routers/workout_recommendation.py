@@ -31,13 +31,17 @@ async def recommend_workout(
     active_requests.inc()
 
     try:
-        # Convert request to dict for service layer
+        # Convert request to dict for service layer; include body profile fields if provided
         workout_request = {
             "goal": request.goal.value,
             "fitness_level": request.fitness_level.value,
             "days_per_week": request.days_per_week,
             "equipment_available": request.equipment_available,
-            "injuries_or_limitations": request.injuries_or_limitations
+            "injuries_or_limitations": request.injuries_or_limitations,
+            "height": request.height,
+            "weight": request.weight,
+            "body_fat": request.body_fat,
+            "muscle_mass": request.muscle_mass,
         }
 
         # Call agent service

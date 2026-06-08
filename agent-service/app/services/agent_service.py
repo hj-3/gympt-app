@@ -51,15 +51,33 @@ class AgentService:
                         "interaction_id": interaction_id
                     }
 
-            # Fetch user profile from backend
-            user_profile = await backend_client.get_user_profile(
-                user_id,
-                internal_token
+            # Fetch user profile and body profile from backend in parallel
+            import asyncio as _asyncio
+            _results = await _asyncio.gather(
+                backend_client.get_user_profile(user_id, internal_token),
+                backend_client.get_body_profile(user_id, internal_token),
+                return_exceptions=True
             )
+            user_profile = _results[0] if not isinstance(_results[0], Exception) else {}
+            body_profile_data = _results[1] if not isinstance(_results[1], Exception) else {}
+
+            # Merge body profile into user_profile for the prompt template.
+            # Values passed directly in workout_request take precedence over what
+            # the backend returns (they come from the user's latest 인바디 record).
+            merged_profile = dict(user_profile or {})
+            if body_profile_data:
+                merged_profile.setdefault("height", body_profile_data.get("height") or body_profile_data.get("height_cm"))
+                merged_profile.setdefault("weight", body_profile_data.get("weight") or body_profile_data.get("weight_kg"))
+                merged_profile.setdefault("body_fat", body_profile_data.get("body_fat") or body_profile_data.get("body_fat_percentage"))
+                merged_profile.setdefault("muscle_mass", body_profile_data.get("muscle_mass") or body_profile_data.get("muscle_mass_kg"))
+            # Override with values explicitly sent in the request (frontend already loaded latest 인바디)
+            for field in ("height", "weight", "body_fat", "muscle_mass"):
+                if workout_request.get(field) is not None:
+                    merged_profile[field] = workout_request[field]
 
             # Render prompt
             prompt = prompt_service.render_workout_prompt(
-                user_profile or {},
+                merged_profile,
                 workout_request
             )
 

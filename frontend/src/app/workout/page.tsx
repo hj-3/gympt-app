@@ -183,6 +183,31 @@ function WorkoutContent() {
         ],
     };
 
+    // Update per-recommendation progress in localStorage
+    if (recommendationIdRef.current && typeof window !== 'undefined') {
+      const progressKey = `gympt_rec_progress_${recommendationIdRef.current}`;
+      try {
+        const existing = JSON.parse(localStorage.getItem(progressKey) || '{}');
+        const exerciseProgress = existing.exercises || {};
+        exerciseProgress[exercise] = {
+          done: true,
+          completedAt: new Date().toISOString(),
+          totalReps: repCount,
+          postureScore: Math.round(avgScore * 10) / 10,
+          targetReps: targetReps,
+          targetSets: targetSets,
+        };
+        const allExercises = Object.values(exerciseProgress) as any[];
+        const allDone = allExercises.length > 0 && allExercises.every((e: any) => e.done);
+        localStorage.setItem(progressKey, JSON.stringify({
+          recommendationId: recommendationIdRef.current,
+          exercises: exerciseProgress,
+          startedAt: existing.startedAt || new Date().toISOString(),
+          completedAt: allDone ? new Date().toISOString() : null,
+        }));
+      } catch { /* ignore */ }
+    }
+
     // Use RDS UUID as localStorage key if available (enables deduplication on dashboard)
     const persistKey = rdsSessionIdRef.current || sessionId;
     const persistedReport = { ...sessionReport, sessionId: persistKey };
@@ -308,7 +333,12 @@ function WorkoutContent() {
 
           {/* Right: stats panel */}
           <div className="space-y-4">
-            <RepCounter count={repCount} exercise={exercise} />
+            <RepCounter
+              count={repCount}
+              exercise={exercise}
+              targetReps={targetReps ?? undefined}
+              targetSets={targetSets ?? undefined}
+            />
 
             {/* AI 추천 목표 진행도 */}
             {targetSets != null && targetReps != null && (

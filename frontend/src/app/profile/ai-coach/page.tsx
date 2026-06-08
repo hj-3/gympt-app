@@ -21,6 +21,22 @@ interface TargetExercise {
   reps: number;
 }
 
+interface ExerciseProgress {
+  done: boolean;
+  completedAt: string | null;
+  totalReps: number;
+  postureScore: number;
+  targetReps: number | null;
+  targetSets: number | null;
+}
+
+interface RecProgress {
+  recommendationId: string;
+  exercises: Record<string, ExerciseProgress>;
+  startedAt: string;
+  completedAt: string | null;
+}
+
 interface Recommendation {
   id?: string;
   title: string;
@@ -30,6 +46,14 @@ interface Recommendation {
   goal?: string;
   fitnessLevel?: string;
   targetExercises?: TargetExercise[];
+}
+
+function loadRecProgress(recommendationId: string): RecProgress | null {
+  if (typeof window === 'undefined' || !recommendationId) return null;
+  try {
+    const raw = localStorage.getItem(`gympt_rec_progress_${recommendationId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
 
 // KVS-trackable exercise key -> 한국어 라벨 (/workout 과 동일)
@@ -319,6 +343,14 @@ export default function AICoachPage() {
 
 function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
   const router = useRouter();
+  const [progress, setProgress] = useState<RecProgress | null>(null);
+
+  useEffect(() => {
+    if (recommendation.id) {
+      setProgress(loadRecProgress(recommendation.id));
+    }
+  }, [recommendation.id]);
+
   const categoryIcons: Record<string, any> = {
     workout: FireIcon,
     posture: ChartBarIcon,
@@ -338,6 +370,11 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
     router.push(`/workout?${params.toString()}`);
   };
 
+  const doneCount = progress
+    ? Object.values(progress.exercises).filter((e: any) => e.done).length
+    : 0;
+  const totalCount = targets.length;
+
   return (
     <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-blue-100">
       <div className="flex items-start gap-3">
@@ -345,31 +382,86 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
           <Icon className="w-6 h-6 text-blue-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-base font-semibold text-gray-900 mb-2">
-            {recommendation.title}
-          </h4>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-base font-semibold text-gray-900">
+              {recommendation.title}
+            </h4>
+            {totalCount > 0 && (
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                doneCount === totalCount
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-blue-50 text-blue-600'
+              }`}>
+                {doneCount}/{totalCount} 완료
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
             {recommendation.content}
           </p>
 
-          {/* KVS 추적 가능한 추천 운동 — 목표 세트×횟수로 바로 시작 */}
+          {/* 4개 운동 진행도 */}
           {targets.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-500 mb-2">
-                추천 운동 바로 시작하기
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {targets.map((t, i) => (
-                  <button
-                    key={i}
-                    onClick={() => startWorkout(t)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    <PlayIcon className="w-4 h-4" />
-                    {EXERCISE_LABELS[t.exercise]} {t.sets}세트 × {t.reps}회
-                  </button>
-                ))}
-              </div>
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+              <p className="text-xs font-medium text-gray-500 mb-3">운동 목표 및 진행도</p>
+              {targets.map((t, i) => {
+                const ep = progress?.exercises?.[t.exercise];
+                const isDone = ep?.done ?? false;
+                return (
+                  <div key={i} className={`rounded-xl p-3 border ${isDone ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                          isDone ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
+                        }`}>
+                          {isDone ? '✓' : i + 1}
+                        </span>
+                        <span className="text-sm font-medium text-gray-800">
+                          {EXERCISE_LABELS[t.exercise]}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {t.sets}세트 × {t.reps}회
+                        </span>
+                      </div>
+                      {isDone ? (
+                        <div className="text-right">
+                          <p className="text-xs text-green-600 font-medium">{ep!.totalReps}회 완료</p>
+                          <p className="text-xs text-gray-400">자세 {ep!.postureScore.toFixed(1)}점</p>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startWorkout(t)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <PlayIcon className="w-3 h-3" />
+                          시작
+                        </button>
+                      )}
+                    </div>
+                    {isDone && ep?.completedAt && (
+                      <p className="text-xs text-gray-400 mt-1 ml-7">
+                        {new Date(ep.completedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* 전체 진행바 */}
+              {totalCount > 0 && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>전체 진행도</span>
+                    <span>{Math.round((doneCount / totalCount) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all"
+                      style={{ width: `${(doneCount / totalCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

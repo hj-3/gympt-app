@@ -25,6 +25,11 @@ class WorkoutRecommendationRequest(BaseModel):
     days_per_week: int = Field(3, ge=1, le=7, description="Workout frequency")
     equipment_available: List[str] = Field(default_factory=list, description="Available equipment")
     injuries_or_limitations: Optional[str] = Field(None, description="Medical considerations")
+    # Body profile snapshot from the frontend (인바디 정보)
+    height: Optional[float] = Field(None, description="Height in cm")
+    weight: Optional[float] = Field(None, description="Weight in kg")
+    body_fat: Optional[float] = Field(None, description="Body fat percentage")
+    muscle_mass: Optional[float] = Field(None, description="Muscle mass in kg")
 
 
 class WorkoutRecommendationResponse(BaseModel):
