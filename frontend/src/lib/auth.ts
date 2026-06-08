@@ -57,6 +57,15 @@ export async function signupWithCognito(
 
 export async function logoutFromCognito(): Promise<void> {
   await signOut();
+  // Clear all gympt session data so a re-registering user starts clean
+  if (typeof window !== 'undefined') {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gympt_')) keysToRemove.push(key);
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  }
 }
 
 export async function getCurrentCognitoUser(): Promise<CognitoUser> {

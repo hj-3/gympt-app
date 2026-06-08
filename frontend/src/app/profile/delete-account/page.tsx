@@ -19,6 +19,18 @@ export default function DeleteAccountPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const clearLocalUserData = () => {
+    if (typeof window === 'undefined') return;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gympt_session_') || key?.startsWith('gympt_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  };
+
   const handleDeleteAccount = async () => {
     if (confirmText !== '회원탈퇴') {
       toast.error('확인 문구를 정확히 입력해주세요');
@@ -28,15 +40,18 @@ export default function DeleteAccountPage() {
     setIsDeleting(true);
 
     try {
-      // 1. Delete from backend database (soft delete)
+      // 1. Clear all local user data first
+      clearLocalUserData();
+
+      // 2. Delete from backend database (hard delete + cascade)
       await apiClient.deleteCurrentAccount();
 
-      // 2. Delete Cognito user account
+      // 3. Delete Cognito user account
       await deleteCognitoUser();
 
       toast.success('회원탈퇴가 완료되었습니다');
 
-      // 3. Sign out and redirect
+      // 4. Sign out and redirect
       await signOut();
 
       setTimeout(() => {
