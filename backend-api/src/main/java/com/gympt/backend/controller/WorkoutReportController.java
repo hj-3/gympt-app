@@ -1,14 +1,21 @@
 package com.gympt.backend.controller;
 
+import com.gympt.backend.domain.WorkoutSession;
+import com.gympt.backend.repository.WorkoutSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -16,27 +23,33 @@ import java.util.*;
 @RequiredArgsConstructor
 public class WorkoutReportController {
 
+    private final WorkoutSessionRepository workoutSessionRepository;
+
     @GetMapping("/{sessionId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> getReport(
             @PathVariable String sessionId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         log.info("Get report for session: {}", sessionId);
 
-        // TODO: Implement actual report retrieval from DynamoDB/Database
-        Map<String, Object> report = new HashMap<>();
-        report.put("reportId", UUID.randomUUID().toString());
-        report.put("sessionId", sessionId);
-        report.put("completedAt", LocalDateTime.now().toString());
-        report.put("summary", createSummary());
-        report.put("exercises", Collections.emptyList());
-        report.put("insights", Collections.emptyList());
-        report.put("recommendations", Collections.emptyList());
+        UUID sessionUuid;
+        try {
+            sessionUuid = UUID.fromString(sessionId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
 
-        return ResponseEntity.ok(report);
+        Optional<WorkoutSession> sessionOpt = workoutSessionRepository.findById(sessionUuid);
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(buildReportMap(sessionOpt.get()));
     }
 
     @GetMapping("/user/{userId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> getReports(
             @PathVariable String userId,
             @RequestParam(defaultValue = "1") int page,
@@ -45,23 +58,58 @@ public class WorkoutReportController {
 
         log.info("Get reports for user: {}, page: {}, limit: {}", userId, page, limit);
 
-        // TODO: Implement actual report retrieval with pagination
+        UUID userUuid;
+        try {
+            userUuid = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        PageRequest pageable = PageRequest.of(
+            Math.max(page - 1, 0), limit, Sort.by("startTime").descending()
+        );
+        Page<WorkoutSession> sessionPage = workoutSessionRepository.findByUserIdAndStatus(
+            userUuid, WorkoutSession.SessionStatus.COMPLETED, pageable
+        );
+
+        List<Map<String, Object>> items = sessionPage.getContent().stream()
+            .map(this::buildReportMap)
+            .collect(Collectors.toList());
+
         Map<String, Object> response = new HashMap<>();
-        response.put("items", Collections.emptyList());
-        response.put("total", 0);
+        response.put("items", items);
+        response.put("total", sessionPage.getTotalElements());
         response.put("page", page);
         response.put("limit", limit);
-        response.put("totalPages", 0);
+        response.put("totalPages", sessionPage.getTotalPages());
 
         return ResponseEntity.ok(response);
     }
 
-    private Map<String, Object> createSummary() {
+    private Map<String, Object> buildReportMap(WorkoutSession session) {
+        int durationMinutes = session.getTotalDuration() != null ? session.getTotalDuration() / 60 : 0;
+        BigDecimal caloriesBurned = session.getCaloriesBurned() != null ? session.getCaloriesBurned() : BigDecimal.ZERO;
+        String completedAt = session.getEndTime() != null
+            ? session.getEndTime().toString()
+            : session.getStartTime().toString();
+
+        String planName = (session.getWorkoutPlan() != null && session.getWorkoutPlan().getPlanName() != null)
+            ? session.getWorkoutPlan().getPlanName()
+            : "운동";
+
         Map<String, Object> summary = new HashMap<>();
-        summary.put("totalDuration", 0);
-        summary.put("exercisesCompleted", 0);
-        summary.put("averagePostureScore", 0.0);
-        summary.put("caloriesBurned", 0);
-        return summary;
+        summary.put("totalDuration", durationMinutes);
+        summary.put("exercisesCompleted", 1);
+        summary.put("averagePostureScore", BigDecimal.ZERO);
+        summary.put("caloriesBurned", caloriesBurned);
+        summary.put("planName", planName);
+
+        Map<String, Object> report = new HashMap<>();
+        report.put("reportId", session.getId().toString());
+        report.put("sessionId", session.getId().toString());
+        report.put("completedAt", completedAt);
+        report.put("summary", summary);
+
+        return report;
     }
 }

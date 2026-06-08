@@ -1,6 +1,8 @@
 package com.gympt.backend.repository;
 
 import com.gympt.backend.domain.WorkoutSession;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,8 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
     List<WorkoutSession> findByUserIdOrderByStartTimeDesc(UUID userId);
 
     List<WorkoutSession> findByUserIdAndStatus(UUID userId, WorkoutSession.SessionStatus status);
+
+    Page<WorkoutSession> findByUserIdAndStatus(UUID userId, WorkoutSession.SessionStatus status, Pageable pageable);
 
     @Query("SELECT ws FROM WorkoutSession ws WHERE ws.user.id = :userId " +
            "AND ws.startTime BETWEEN :startDate AND :endDate")
