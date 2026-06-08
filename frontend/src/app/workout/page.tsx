@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { apiClient } from '@/lib/api-client';
 import { usePostureAnalysis } from '@/hooks/usePostureAnalysis';
 import { VideoFeed } from '@/components/workout/VideoFeed';
 import { PostureFeedback } from '@/components/workout/PostureFeedback';
