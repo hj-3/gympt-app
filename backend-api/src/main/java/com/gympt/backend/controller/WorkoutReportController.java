@@ -93,16 +93,11 @@ public class WorkoutReportController {
             ? session.getEndTime().toString()
             : session.getStartTime().toString();
 
-        String planName = (session.getWorkoutPlan() != null && session.getWorkoutPlan().getPlanName() != null)
-            ? session.getWorkoutPlan().getPlanName()
-            : "운동";
-
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalDuration", durationMinutes);
         summary.put("exercisesCompleted", 1);
         summary.put("averagePostureScore", BigDecimal.ZERO);
         summary.put("caloriesBurned", caloriesBurned);
-        summary.put("planName", planName);
 
         Map<String, Object> report = new HashMap<>();
         report.put("reportId", session.getId().toString());
