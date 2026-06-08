@@ -18,9 +18,30 @@ export function VideoFeed({ isActive, onFrame, exercise, landmarks = [] }: Video
   const [error, setError] = useState<string | null>(null);
   const [videoDimensions, setVideoDimensions] = useState({ width: 640, height: 360 });
 
+  // Keep the latest onFrame in a ref so the camera effect doesn't restart when the callback changes
+  const onFrameRef = useRef(onFrame);
+  useEffect(() => { onFrameRef.current = onFrame; });
+
   useEffect(() => {
     let stream: MediaStream | null = null;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const captureFrame = () => {
+      if (videoRef.current && canvasRef.current) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+
+          const frameData = canvas.toDataURL('image/jpeg', 0.7);
+          if (onFrameRef.current) onFrameRef.current(frameData);
+        }
+      }
+    };
 
     const startCamera = async () => {
       try {
@@ -41,10 +62,8 @@ export function VideoFeed({ isActive, onFrame, exercise, landmarks = [] }: Video
           };
         }
 
-        if (onFrame && isActive) {
-          intervalId = setInterval(() => {
-            captureFrame();
-          }, 200); // 5 FPS — enough for posture analysis
+        if (isActive) {
+          intervalId = setInterval(captureFrame, 200); // 5 FPS — enough for posture analysis
         }
 
         setError(null);
@@ -54,30 +73,13 @@ export function VideoFeed({ isActive, onFrame, exercise, landmarks = [] }: Video
       }
     };
 
-    const captureFrame = () => {
-      if (videoRef.current && canvasRef.current) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-
-        if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0);
-
-          const frameData = canvas.toDataURL('image/jpeg', 0.7);
-          if (onFrame) onFrame(frameData);
-        }
-      }
-    };
-
     if (isActive) startCamera();
 
     return () => {
       if (intervalId) clearInterval(intervalId);
       if (stream) stream.getTracks().forEach((track) => track.stop());
     };
-  }, [isActive, onFrame]);
+  }, [isActive]); // onFrame excluded: stored in ref so camera doesn't restart on parent re-renders
 
   const exerciseLabels: Record<string, string> = {
     squat: '스쿼트',

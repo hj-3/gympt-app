@@ -33,6 +33,7 @@ function WorkoutContent() {
   const [targetSets, setTargetSets] = useState<number | null>(null);
   const [targetReps, setTargetReps] = useState<number | null>(null);
   const recommendationIdRef = useRef<string | null>(null);
+  const rdsSessionIdRef = useRef<string | null>(null);
 
   // 추천 링크의 쿼리 파라미터(exercise/sets/reps/recommendationId) 반영
   useEffect(() => {
@@ -86,15 +87,20 @@ function WorkoutContent() {
     const sid = `local-${Date.now()}`;
     setSessionId(sid);
     scoreHistoryRef.current = [];
+    rdsSessionIdRef.current = null;
 
     try {
-      // 실제 자세 분석 서버(WebSocket)에 연결. 연결되어야만 세션 시작.
       await connect(sid);
     } catch {
       toast.error('자세 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
       setSessionId(null);
       return;
     }
+
+    // Create session record in RDS for dashboard history (non-blocking)
+    apiClient.startFreeSession().then((res: any) => {
+      if (res?.id) rdsSessionIdRef.current = res.id;
+    }).catch((e: any) => console.warn('Failed to create backend session:', e));
 
     setIsSessionActive(true);
     toast.success('운동 세션이 시작되었습니다!');
@@ -178,6 +184,13 @@ function WorkoutContent() {
 
     if (typeof window !== 'undefined') {
       localStorage.setItem(`gympt_session_${sessionId}`, JSON.stringify(sessionReport));
+    }
+
+    // Mark session COMPLETED in RDS so it appears on the dashboard
+    if (rdsSessionIdRef.current) {
+      apiClient.completeSession(rdsSessionIdRef.current, { totalDuration: elapsedSeconds })
+        .catch((e: any) => console.warn('Failed to complete backend session:', e));
+      rdsSessionIdRef.current = null;
     }
 
     toast.success('운동이 완료되었습니다! 리포트를 생성합니다...');

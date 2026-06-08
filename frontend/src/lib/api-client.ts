@@ -94,8 +94,13 @@ class ApiClient {
     return response.data;
   }
 
-  async completeSession(sessionId: string): Promise<ApiResponse<any>> {
-    const response = await this.client.post(`/api/v1/sessions/${sessionId}/complete`);
+  async startFreeSession(): Promise<ApiResponse<any>> {
+    const response = await this.client.post('/api/v1/sessions/start', {});
+    return response.data;
+  }
+
+  async completeSession(sessionId: string, data?: { totalDuration?: number; caloriesBurned?: number; notes?: string }): Promise<ApiResponse<any>> {
+    const response = await this.client.post(`/api/v1/sessions/${sessionId}/complete`, data || {});
     return response.data;
   }
 
