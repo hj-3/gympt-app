@@ -154,3 +154,5 @@ jobs:
           git commit -m "ci: update kvs-consumer-service ${ENVIRONMENT} image to ${IMAGE_TAG}"
           git pull --rebase origin main
           git push origin main
+
+
