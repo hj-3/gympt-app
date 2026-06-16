@@ -4,20 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
-import {
-  FireIcon,
-  CalendarIcon,
-  TrophyIcon,
-  ChartBarIcon,
-  PlayIcon
-} from '@heroicons/react/24/outline';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
-interface DashboardStats {
-  totalWorkouts: number;
-  totalMinutes: number;
-  avgScore: number;
-  streak: number;
 }
 
 export default function DashboardPage() {
