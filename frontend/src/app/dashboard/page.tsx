@@ -2,7 +2,197 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/lib/api-client';
+import {
+  FireIcon,
+  CalendarIcon,
+  TrophyIcon,
+  ChartBarIcon,
+  PlayIcon
+} from '@heroicons/react/24/outline';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
+interface DashboardStats {
+  totalWorkouts: number;
+  totalMinutes: number;
+  avgScore: number;
+  streak: number;
+}
+
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalWorkouts: 0,
+    totalMinutes: 0,
+    avgScore: 0,
+    streak: 0
+  });
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user?.userId) {
+      loadDashboardData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId]);
+
+  const loadLocalSessions = (): any[] => {
+    if (typeof window === 'undefined') return [];
+    const sessions: any[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gympt_session_')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          if (data.completedAt) {
+            sessions.push({
+              reportId: data.sessionId || key.replace('gympt_session_', ''),
+              sessionId: data.sessionId || key.replace('gympt_session_', ''),
+              completedAt: data.completedAt,
+              summary: data.summary || { totalDuration: 0, exercisesCompleted: 1, averagePostureScore: 0 },
+            });
+          }
+        } catch { /* skip invalid entries */ }
+      }
+    }
+    return sessions.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  };
+
+  const loadDashboardData = async () => {
+    if (!user?.userId) return;
+
+    try {
+      setLoading(true);
+
+      // Load stats — 백엔드 StatsResponse 필드: completedSessions, totalMinutes, avgPostureScore
+      const statsResponse = await apiClient.getStats(user.userId) as any;
+      const localSessions = loadLocalSessions();
+
+      if (statsResponse) {
+        const localTotal = localSessions.length;
+        const localMinutes = localSessions.reduce((sum: number, s: any) => sum + (s.summary?.totalDuration || 0), 0);
+        setStats({
+          totalWorkouts: (statsResponse.completedSessions || 0) + localTotal,
+          totalMinutes: (statsResponse.totalMinutes || 0) + localMinutes,
+          avgScore: statsResponse.avgPostureScore || 0,
+          streak: statsResponse.weeklyWorkouts || 0,
+        });
+      }
+
+      // Load recent reports — RDS sessions merged with localStorage sessions
+      let rdsItems: any[] = [];
+      try {
+        const reportsResponse = await apiClient.getReports(user.userId, 1, 10) as any;
+        if (reportsResponse?.items) rdsItems = reportsResponse.items;
+      } catch { /* RDS may have no data yet */ }
+
+      // Merge RDS and localStorage, deduplicate by sessionId, take most recent 5
+      const rdsIds = new Set(rdsItems.map((s: any) => s.sessionId));
+      const localOnly = localSessions.filter(s => !rdsIds.has(s.sessionId));
+      const merged = [...rdsItems, ...localOnly]
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+        .slice(0, 5);
+      setRecentSessions(merged);
+    } catch (error: any) {
+      console.error('Failed to load dashboard data:', error);
+      // 백엔드 미연결 시 localStorage 세션이라도 보여줌
+      setRecentSessions(loadLocalSessions().slice(0, 5));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              대시보드
+            </h1>
+            <p className="text-sm text-gray-600">
+              나의 운동 기록을 확인하세요
+            </p>
+          </div>
+
+          {/* Quick Action */}
+          <Link href="/workout">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-6 mb-6 shadow-lg cursor-pointer hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between text-white">
+                <div>
+                  <p className="text-sm font-medium mb-1 opacity-90">지금 바로</p>
+                  <h2 className="text-2xl font-bold">운동 시작하기</h2>
+                </div>
+                <div className="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <PlayIcon className="w-7 h-7" />
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <StatCard
+              icon={<FireIcon className="w-6 h-6 text-orange-500" />}
+              label="연속 운동"
+              value={`${stats.streak}일`}
+              bgColor="bg-orange-50"
+            />
+            <StatCard
+              icon={<TrophyIcon className="w-6 h-6 text-yellow-500" />}
+              label="총 운동"
+              value={`${stats.totalWorkouts}회`}
+              bgColor="bg-yellow-50"
+            />
+            <StatCard
+              icon={<CalendarIcon className="w-6 h-6 text-green-500" />}
+              label="운동 시간"
+              value={`${stats.totalMinutes}분`}
+              bgColor="bg-green-50"
+            />
+            <StatCard
+              icon={<ChartBarIcon className="w-6 h-6 text-blue-500" />}
+              label="평균 점수"
+              value={`${stats.avgScore.toFixed(1)}점`}
+              bgColor="bg-blue-50"
+            />
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                최근 운동
+              </h3>
+              <Link href="/report">
+                <button className="text-sm text-blue-600 font-medium hover:text-blue-700">
+                  전체보기
+                </button>
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {recentSessions.length > 0 ? (
+                recentSessions.map((session) => (
+                  <SessionCard key={session.reportId} session={session} />
+                ))
+              ) : (
+                <EmptyState message="아직 운동 기록이 없어요" />
+              )}
+            </div>
+          </div>
 
           {/* Weekly Goal */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
@@ -85,3 +275,4 @@ function EmptyState({ message }: { message: string }) {
     </div>
   );
 }
+
