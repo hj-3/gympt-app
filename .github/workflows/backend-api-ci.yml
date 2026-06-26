@@ -119,12 +119,35 @@ jobs:
     needs: build-and-push
     if: github.event_name != 'pull_request'
     steps:
+      - name: Validate GitOps PAT access
+        env:
+          GITOPS_PAT: ${{ secrets.GITOPS_PAT }}
+          GITOPS_REPO: ${{ env.GITOPS_REPO }}
+        run: |
+          if [ -z "$GITOPS_PAT" ]; then
+            echo "::error::GITOPS_PAT is empty or not available to this workflow. Add it to hj-3/gympt-app repository Actions secrets, or attach the environment that owns this secret."
+            exit 1
+          fi
+
+          status="$(curl -sS -o /tmp/gitops-repo.json -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITOPS_PAT}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITOPS_REPO}")"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::GITOPS_PAT cannot read ${GITOPS_REPO}. HTTP ${status}. Check PAT expiration, selected repository access, and Contents permissions."
+            cat /tmp/gitops-repo.json
+            exit 1
+          fi
+
       - name: Checkout GitOps
         uses: actions/checkout@v4
         with:
           repository: ${{ env.GITOPS_REPO }}
           ref: main
           token: ${{ secrets.GITOPS_PAT }}
+          persist-credentials: true
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
