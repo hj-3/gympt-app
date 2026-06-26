@@ -305,3 +305,4 @@ curl http://localhost:8003/health
 
 **저장소**: https://github.com/hj-3/gympt-app  
 **최종 업데이트**: 2026-06-07
+# Test PR for aigo webhook trigger
