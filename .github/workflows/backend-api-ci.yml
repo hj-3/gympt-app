@@ -162,8 +162,9 @@ jobs:
           echo "Updating ${VALUES_FILE} with image tag ${IMAGE_TAG}"
           yq -i '.image.tag = strenv(IMAGE_TAG)' "${VALUES_FILE}"
 
-      - name: Commit and push GitOps update
+      - name: Create GitOps update pull request
         env:
+          GH_TOKEN: ${{ secrets.GITOPS_PAT }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
           ENVIRONMENT: ${{ needs.build-and-push.outputs.environment }}
         run: |
@@ -177,5 +178,19 @@ jobs:
 
           git add "charts/backend-api/values-${ENVIRONMENT}.yaml"
           git commit -m "ci: update backend-api ${ENVIRONMENT} image to ${IMAGE_TAG}"
-          git pull --rebase origin main
-          git push origin main
+
+          BRANCH_NAME="ci/backend-api-${ENVIRONMENT}-${IMAGE_TAG}"
+          git branch -M "$BRANCH_NAME"
+          git push --force-with-lease origin "$BRANCH_NAME"
+
+          gh pr create \
+            --repo "$GITOPS_REPO" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "ci: update backend-api ${ENVIRONMENT} image to ${IMAGE_TAG}" \
+            --body "Automated GitOps update from hj-3/gympt-app Backend API CI/CD.
+
+          - Service: backend-api
+          - Environment: ${ENVIRONMENT}
+          - Image tag: ${IMAGE_TAG}
+          - Source run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
